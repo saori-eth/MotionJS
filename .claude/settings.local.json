@@ -3,7 +3,13 @@
     "allow": [
       "Bash(mkdir:*)",
       "Bash(pnpm install:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "Bash(pnpm -C packages/common build)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm -C packages/server add -D @types/cannon)",
+      "Bash(pnpm -C packages/client add -D three @types/three)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

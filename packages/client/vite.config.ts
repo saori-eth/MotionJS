@@ -5,7 +5,10 @@ import { resolve } from 'path';
 export default defineConfig({
   plugins: [glsl()],
   server: {
-    port: 3000
+    port: 3000,
+    fs: {
+      allow: ['..']
+    }
   },
   build: {
     outDir: 'dist',
@@ -13,7 +16,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@motionjs/common': resolve(__dirname, '../common/src/index.ts')
+      '@motionjs/common': resolve(__dirname, '../common/src/index.ts'),
+      '/scripts': resolve(__dirname, '../../scripts')
     }
   }
 });

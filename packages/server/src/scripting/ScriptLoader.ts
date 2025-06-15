@@ -1,20 +1,22 @@
-import { promises as fs } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { World, ScriptContext, ScriptFunction, DatabaseAPI } from '@motionjs/common';
-import { RoomManager } from '../rooms/RoomManager.js';
-import { Database } from '../database/Database.js';
+import { promises as fs } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import {
+  World,
+  ScriptContext,
+  ScriptFunction,
+  DatabaseAPI,
+} from "@motionjs/common";
+import { RoomManager } from "../rooms/RoomManager.js";
+import { Database } from "../database/Database.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export class ScriptLoader {
   private scripts: Map<string, ScriptFunction> = new Map();
-  
-  constructor(
-    private roomManager: RoomManager,
-    private database: Database
-  ) {}
-  
+
+  constructor(private roomManager: RoomManager, private database: Database) {}
+
   private createContext(world: World): ScriptContext {
     const dbApi: DatabaseAPI = {
       addCurrency: async (userId: string, amount: number) => {
@@ -25,14 +27,14 @@ export class ScriptLoader {
       },
       getUser: async (userId: string) => {
         return this.database.getUser(userId);
-      }
+      },
     };
-    
+
     return {
       isClient: false,
       isServer: true,
       world,
-      
+
       raycast: (origin, direction, options) => {
         const rooms = this.roomManager.getRooms();
         for (const room of rooms) {
@@ -40,32 +42,39 @@ export class ScriptLoader {
         }
         return null;
       },
-      
+
       db: dbApi,
-      
+
       broadcast: (message: any) => {
-        console.log('Broadcasting:', message);
-      }
+        console.log("Broadcasting:", message);
+      },
     };
   }
-  
+
   async loadScripts(): Promise<void> {
-    const scriptsDir = join(__dirname, '..', '..', '..', 'scripts');
-    
+    const scriptsDir = join(__dirname, "..", "..", "..", "..", "scripts");
+
     try {
       await fs.access(scriptsDir);
       const files = await fs.readdir(scriptsDir);
-      
+
       for (const file of files) {
-        if (file.endsWith('.ts') || file.endsWith('.js')) {
+        if (file.endsWith(".ts") || file.endsWith(".js")) {
           try {
             const scriptPath = join(scriptsDir, file);
             const module = await import(scriptPath);
-            
-            if (module.default && typeof module.default === 'function') {
-              const scriptName = file.replace(/\\.(ts|js)$/, '');
+
+            if (module.default && typeof module.default === "function") {
+              const scriptName = file.replace(/\\.(ts|js)$/, "");
               this.scripts.set(scriptName, module.default);
               console.log(`Loaded server script: ${scriptName}`);
+
+              // Execute scripts for each room
+              const rooms = this.roomManager.getRooms();
+              for (const room of rooms) {
+                const context = this.createContext(room.world);
+                await module.default(context);
+              }
             }
           } catch (error) {
             console.error(`Failed to load script ${file}:`, error);
@@ -73,7 +82,19 @@ export class ScriptLoader {
         }
       }
     } catch (error) {
-      console.log('Scripts directory not found, skipping script loading');
+      console.log("Scripts directory not found, skipping script loading");
+    }
+  }
+
+  async executeScriptsForRoom(world: World): Promise<void> {
+    const context = this.createContext(world);
+    for (const [name, script] of this.scripts) {
+      try {
+        await script(context);
+        console.log(`Executed script ${name} for room`);
+      } catch (error) {
+        console.error(`Failed to execute script ${name}:`, error);
+      }
     }
   }
 }

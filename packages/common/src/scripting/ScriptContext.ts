@@ -1,5 +1,5 @@
-import { World } from '../ecs/index.js';
-import { Vector3, Hit } from '../types.js';
+import { World } from "../ecs/index.js";
+import { Vector3, Hit } from "../types.js";
 
 export interface RaycastOptions {
   maxDistance?: number;
@@ -18,14 +18,18 @@ export interface ScriptContext {
   isServer: boolean;
   world: World;
   localPlayerId?: string;
-  
-  raycast(origin: Vector3, direction: Vector3, options?: RaycastOptions): Hit | null;
-  
+
+  raycast(
+    origin: Vector3,
+    direction: Vector3,
+    options?: RaycastOptions
+  ): Hit | null;
+
   loadModel?(path: string): Promise<any>;
   loadAudio?(path: string): Promise<any>;
-  
+
   db?: DatabaseAPI;
-  
+
   broadcast?(message: any): void;
 }
 

@@ -74,12 +74,12 @@ export class ClientConnection extends EventEmitter {
     }
   }
   
-  private handleJoinRoom(roomId: string, playerName: string): void {
+  private async handleJoinRoom(roomId: string, playerName: string): Promise<void> {
     if (this.roomId) {
       this.handleLeaveRoom();
     }
     
-    const room = this.roomManager.getOrCreateRoom(roomId);
+    const room = await this.roomManager.getOrCreateRoom(roomId);
     const result = room.addPlayer(this.id, playerName, this);
     
     if (result.success) {

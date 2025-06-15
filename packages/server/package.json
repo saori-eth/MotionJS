@@ -11,15 +11,16 @@
   },
   "dependencies": {
     "@motionjs/common": "workspace:*",
-    "ws": "^8.16.0",
-    "cannon": "^0.6.2",
     "better-sqlite3": "^9.3.0",
-    "nanoid": "^5.0.4"
+    "cannon": "^0.6.2",
+    "nanoid": "^5.0.4",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
-    "@types/ws": "^8.5.10",
     "@types/better-sqlite3": "^7.6.8",
+    "@types/cannon": "^0.1.13",
     "@types/node": "^20.11.5",
+    "@types/ws": "^8.5.10",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }

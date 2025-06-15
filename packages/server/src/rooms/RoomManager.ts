@@ -1,8 +1,10 @@
 import { Room, RoomConfig } from './Room.js';
 import { Database } from '../database/Database.js';
+import { ScriptLoader } from '../scripting/ScriptLoader.js';
 
 export class RoomManager {
   private rooms: Map<string, Room> = new Map();
+  private scriptLoader: ScriptLoader | null = null;
   private defaultConfig: RoomConfig = {
     maxPlayers: 10,
     tickRate: 60
@@ -10,7 +12,11 @@ export class RoomManager {
   
   constructor(private database: Database) {}
   
-  getOrCreateRoom(roomId: string, config?: Partial<RoomConfig>): Room {
+  setScriptLoader(scriptLoader: ScriptLoader): void {
+    this.scriptLoader = scriptLoader;
+  }
+  
+  async getOrCreateRoom(roomId: string, config?: Partial<RoomConfig>): Promise<Room> {
     let room = this.rooms.get(roomId);
     
     if (!room) {
@@ -18,6 +24,11 @@ export class RoomManager {
       room = new Room(roomId, roomConfig, this.database);
       this.rooms.set(roomId, room);
       console.log(`Created room: ${roomId}`);
+      
+      // Execute scripts for the new room
+      if (this.scriptLoader) {
+        await this.scriptLoader.executeScriptsForRoom(room.world);
+      }
     }
     
     return room;

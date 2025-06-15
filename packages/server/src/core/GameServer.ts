@@ -15,6 +15,7 @@ export class GameServer {
     this.database = new Database();
     this.roomManager = new RoomManager(this.database);
     this.scriptLoader = new ScriptLoader(this.roomManager, this.database);
+    this.roomManager.setScriptLoader(this.scriptLoader);
   }
   
   async start(): Promise<void> {

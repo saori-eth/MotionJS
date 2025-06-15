@@ -33,10 +33,8 @@ export class PlayerController {
     if (this.keys.has('s')) this.movement.z += 1;
     if (this.keys.has('a')) this.movement.x -= 1;
     if (this.keys.has('d')) this.movement.x += 1;
-    if (this.keys.has(' ')) this.movement.y += 1;
     
     this.movement.normalize();
-    this.movement.multiplyScalar(this.moveSpeed * deltaTime);
     
     const store = useGameStore.getState();
     const sequenceNumber = store.incrementInputSequence();

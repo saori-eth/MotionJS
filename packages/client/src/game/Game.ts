@@ -9,12 +9,12 @@ import { ScriptLoader } from '../scripting/ScriptLoader';
 import { useGameStore } from '../store/gameStore';
 
 export class Game {
-  private renderer: Renderer;
+  private renderer!: Renderer;
   private networkManager: NetworkManager;
   private playerController: PlayerController;
-  private cameraController: CameraController;
+  private cameraController!: CameraController;
   private prediction: ClientPrediction;
-  private scriptLoader: ScriptLoader;
+  private scriptLoader!: ScriptLoader;
   private world: World;
   
   private avatars: Map<string, PlayerAvatar> = new Map();
@@ -81,27 +81,16 @@ export class Game {
         this.prediction.addInput(input);
       }
       
-      const predictedPosition = this.prediction.predictPosition(
-        this.localAvatar.mesh.position,
-        input,
-        deltaTime
-      );
-      
-      this.localAvatar.setPosition(
-        predictedPosition.x,
-        predictedPosition.y,
-        predictedPosition.z
-      );
+      // Don't predict position for now - let server update handle it
       
       this.cameraController.follow(this.localAvatar.mesh, deltaTime);
     }
     
+    // Update all avatars from server state
     for (const [id, avatar] of this.avatars) {
-      if (id !== store.playerId) {
-        const player = store.players.get(id);
-        if (player) {
-          avatar.updateFromPlayer(player, deltaTime);
-        }
+      const player = store.players.get(id);
+      if (player) {
+        avatar.updateFromPlayer(player, deltaTime);
       }
     }
   }
@@ -120,6 +109,7 @@ export class Game {
         
         if (isLocal) {
           this.localAvatar = avatar;
+          this.scriptLoader.setLocalPlayerId(playerId);
         }
       }
     }
