@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.pnpm-debug.log
+*.log
+.DS_Store
+.env
+.env.local
+*.db
+*.db-journal
+.vite/
+.turbo/

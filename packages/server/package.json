@@ -1,0 +1,26 @@
+{
+  "name": "@motionjs/server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@motionjs/common": "workspace:*",
+    "ws": "^8.16.0",
+    "cannon": "^0.6.2",
+    "better-sqlite3": "^9.3.0",
+    "nanoid": "^5.0.4"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10",
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.11.5",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

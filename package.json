@@ -1,0 +1,21 @@
+{
+  "name": "motionjs",
+  "version": "1.0.0",
+  "description": "Lightweight 3D multiplayer game engine",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel dev",
+    "build": "pnpm --parallel build",
+    "lint": "pnpm --parallel lint",
+    "typecheck": "pnpm --parallel typecheck"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
