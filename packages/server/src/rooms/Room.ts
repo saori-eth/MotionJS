@@ -8,6 +8,7 @@ import {
   PlayerJoinedMessage,
   PlayerLeftMessage,
   SnapshotMessage,
+  ScriptBroadcastMessage,
 } from "@motionjs/common";
 import { PhysicsWorld } from "../physics/PhysicsWorld.js";
 import { ClientConnection } from "../networking/ClientConnection.js";
@@ -208,5 +209,46 @@ export class Room {
 
   getPlayerCount(): number {
     return this.players.size;
+  }
+
+  handleScriptMessage(senderId: string, channel: string, data: any, targetPlayerId?: string): void {
+    if (this.scriptLoader) {
+      this.scriptLoader.handleIncomingMessage(this.world, channel, data, senderId);
+    }
+
+    const broadcastMessage: ScriptBroadcastMessage = {
+      type: MessageType.ScriptBroadcast,
+      channel,
+      data,
+      senderId,
+    };
+
+    if (targetPlayerId) {
+      // Send to specific player
+      const connection = this.connections.get(targetPlayerId);
+      if (connection) {
+        connection.send(broadcastMessage);
+      }
+    } else {
+      // Broadcast to all players except sender
+      this.broadcast(broadcastMessage, senderId);
+    }
+  }
+
+  sendScriptMessage(channel: string, data: any, targetPlayerId?: string): void {
+    const broadcastMessage: ScriptBroadcastMessage = {
+      type: MessageType.ScriptBroadcast,
+      channel,
+      data,
+    };
+
+    if (targetPlayerId) {
+      const connection = this.connections.get(targetPlayerId);
+      if (connection) {
+        connection.send(broadcastMessage);
+      }
+    } else {
+      this.broadcast(broadcastMessage);
+    }
   }
 }

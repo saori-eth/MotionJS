@@ -3,6 +3,8 @@ import {
   ScriptContext,
   ScriptFunction,
   Vector3,
+  PrimitiveOptions,
+  SpawnedPrimitive,
 } from "@motionjs/common";
 import { Renderer } from "../rendering/Renderer";
 import * as THREE from "three";
@@ -12,9 +14,23 @@ export class ScriptLoader {
   private context: ScriptContext;
   private updateCallbacks: ((deltaTime: number) => void)[] = [];
   private lastUpdateTime: number = performance.now();
+  private spawnedPrimitives: Map<string, THREE.Mesh> = new Map();
+  private primitiveIdCounter: number = 0;
+  private messageHandlers: Map<string, ((data: any, senderId?: string) => void)[]> = new Map();
+  private networkManager: any = null;
 
   constructor(private world: World, private renderer: Renderer) {
     this.context = this.createContext();
+  }
+
+  setNetworkManager(networkManager: any): void {
+    this.networkManager = networkManager;
+    // Re-register all message handlers with the network manager
+    for (const [channel, handlers] of this.messageHandlers) {
+      for (const handler of handlers) {
+        this.networkManager.onScriptMessage(channel, handler);
+      }
+    }
   }
 
   setLocalPlayerId(playerId: string): void {
@@ -79,6 +95,98 @@ export class ScriptLoader {
       onUpdate: (callback: (deltaTime: number) => void) => {
         this.updateCallbacks.push(callback);
       },
+
+      spawnPrimitive: (options: PrimitiveOptions): SpawnedPrimitive => {
+        const id = `primitive_${this.primitiveIdCounter++}`;
+        
+        // Create geometry based on type
+        let geometry: THREE.BufferGeometry;
+        switch (options.type) {
+          case 'box':
+            geometry = new THREE.BoxGeometry(1, 1, 1);
+            break;
+          case 'sphere':
+            geometry = new THREE.SphereGeometry(0.5, 32, 16);
+            break;
+          case 'cylinder':
+            geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+            break;
+          case 'cone':
+            geometry = new THREE.ConeGeometry(0.5, 1, 32);
+            break;
+          case 'torus':
+            geometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100);
+            break;
+          case 'plane':
+            geometry = new THREE.PlaneGeometry(1, 1);
+            break;
+        }
+
+        // Create material
+        const material = new THREE.MeshPhongMaterial({
+          color: options.color ?? 0x00ff00,
+          wireframe: options.wireframe ?? false,
+        });
+
+        // Create mesh
+        const mesh = new THREE.Mesh(geometry, material);
+        
+        // Set initial transform
+        if (options.position) {
+          mesh.position.set(options.position.x, options.position.y, options.position.z);
+        }
+        if (options.rotation) {
+          mesh.rotation.set(options.rotation.x, options.rotation.y, options.rotation.z);
+        }
+        if (options.scale) {
+          mesh.scale.set(options.scale.x, options.scale.y, options.scale.z);
+        }
+
+        // Add to scene
+        this.renderer.scene.add(mesh);
+        this.spawnedPrimitives.set(id, mesh);
+
+        // Return primitive controller
+        return {
+          id,
+          mesh,
+          setPosition: (position: Vector3) => {
+            mesh.position.set(position.x, position.y, position.z);
+          },
+          setRotation: (rotation: Vector3) => {
+            mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+          },
+          setScale: (scale: Vector3) => {
+            mesh.scale.set(scale.x, scale.y, scale.z);
+          },
+          destroy: () => {
+            this.renderer.scene.remove(mesh);
+            geometry.dispose();
+            material.dispose();
+            this.spawnedPrimitives.delete(id);
+          },
+        };
+      },
+
+      sendToServer: (channel: string, data: any) => {
+        if (this.networkManager) {
+          this.networkManager.sendScriptMessage(channel, data);
+        } else {
+          console.warn('NetworkManager not set, cannot send message to server');
+        }
+      },
+
+      onMessage: (channel: string, callback: (data: any, senderId?: string) => void) => {
+        if (!this.messageHandlers.has(channel)) {
+          this.messageHandlers.set(channel, []);
+        }
+        this.messageHandlers.get(channel)!.push(callback);
+        
+        // Register with network manager if available
+        if (this.networkManager) {
+          this.networkManager.onScriptMessage(channel, callback);
+        }
+      },
     };
   }
 
@@ -125,5 +233,32 @@ export class ScriptLoader {
         console.error("Error in script update callback:", error);
       }
     }
+  }
+
+  dispose(): void {
+    // Clean up spawned primitives
+    for (const [id, mesh] of this.spawnedPrimitives) {
+      this.renderer.scene.remove(mesh);
+      if (mesh.geometry) mesh.geometry.dispose();
+      if (mesh.material) {
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach(m => m.dispose());
+        } else {
+          mesh.material.dispose();
+        }
+      }
+    }
+    this.spawnedPrimitives.clear();
+    this.updateCallbacks = [];
+    
+    // Unregister message handlers
+    if (this.networkManager) {
+      for (const [channel, handlers] of this.messageHandlers) {
+        for (const handler of handlers) {
+          this.networkManager.offScriptMessage(channel, handler);
+        }
+      }
+    }
+    this.messageHandlers.clear();
   }
 }

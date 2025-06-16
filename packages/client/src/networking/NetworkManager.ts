@@ -5,7 +5,9 @@ import {
   PlayerInput,
   JoinRoomMessage,
   LeaveRoomMessage,
-  PlayerInputMessage
+  PlayerInputMessage,
+  ScriptMessage,
+  ScriptBroadcastMessage
 } from '@motionjs/common';
 import { useGameStore } from '../store/gameStore';
 
@@ -13,6 +15,7 @@ export class NetworkManager {
   private ws: WebSocket | null = null;
   private reconnectTimer: number | null = null;
   private readonly reconnectDelay = 3000;
+  private scriptMessageHandlers: Map<string, ((data: any, senderId?: string) => void)[]> = new Map();
   
   constructor(private serverUrl: string) {}
   
@@ -96,6 +99,23 @@ export class NetworkManager {
       case MessageType.Error:
         console.error(`Server error: ${message.message}`);
         break;
+        
+      case MessageType.ScriptBroadcast:
+        this.handleScriptBroadcast(message);
+        break;
+    }
+  }
+  
+  private handleScriptBroadcast(message: ScriptBroadcastMessage): void {
+    const handlers = this.scriptMessageHandlers.get(message.channel);
+    if (handlers) {
+      for (const handler of handlers) {
+        try {
+          handler(message.data, message.senderId);
+        } catch (error) {
+          console.error(`Error in script message handler for channel ${message.channel}:`, error);
+        }
+      }
     }
   }
   
@@ -127,5 +147,32 @@ export class NetworkManager {
       input
     };
     this.send(message);
+  }
+  
+  sendScriptMessage(channel: string, data: any, targetPlayerId?: string): void {
+    const message: ScriptMessage = {
+      type: MessageType.ScriptMessage,
+      channel,
+      data,
+      targetPlayerId
+    };
+    this.send(message);
+  }
+  
+  onScriptMessage(channel: string, handler: (data: any, senderId?: string) => void): void {
+    if (!this.scriptMessageHandlers.has(channel)) {
+      this.scriptMessageHandlers.set(channel, []);
+    }
+    this.scriptMessageHandlers.get(channel)!.push(handler);
+  }
+  
+  offScriptMessage(channel: string, handler: (data: any, senderId?: string) => void): void {
+    const handlers = this.scriptMessageHandlers.get(channel);
+    if (handlers) {
+      const index = handlers.indexOf(handler);
+      if (index !== -1) {
+        handlers.splice(index, 1);
+      }
+    }
   }
 }

@@ -43,6 +43,7 @@ export class Game {
       this.renderer = new Renderer(this.container);
       this.cameraController = new CameraController(this.renderer.camera);
       this.scriptLoader = new ScriptLoader(this.world, this.renderer);
+      this.scriptLoader.setNetworkManager(this.networkManager);
       this.setupStoreSubscriptions();
       
       await this.networkManager.connect();

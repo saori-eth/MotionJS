@@ -13,6 +13,24 @@ export interface DatabaseAPI {
   getUser(userId: string): Promise<{ id: string; name: string } | null>;
 }
 
+export interface PrimitiveOptions {
+  type: 'box' | 'sphere' | 'cylinder' | 'cone' | 'torus' | 'plane';
+  position?: Vector3;
+  rotation?: Vector3;
+  scale?: Vector3;
+  color?: number;
+  wireframe?: boolean;
+}
+
+export interface SpawnedPrimitive {
+  id: string;
+  mesh: any; // THREE.Mesh
+  setPosition(position: Vector3): void;
+  setRotation(rotation: Vector3): void;
+  setScale(scale: Vector3): void;
+  destroy(): void;
+}
+
 export interface ScriptContext {
   isClient: boolean;
   isServer: boolean;
@@ -33,6 +51,13 @@ export interface ScriptContext {
   broadcast?(message: any): void;
 
   onUpdate(callback: (deltaTime: number) => void): void;
+
+  spawnPrimitive?(options: PrimitiveOptions): SpawnedPrimitive;
+
+  // Messaging API
+  sendToServer?(channel: string, data: any): void;
+  sendToClient?(channel: string, data: any, playerId?: string): void;
+  onMessage(channel: string, callback: (data: any, senderId?: string) => void): void;
 }
 
 export type ScriptFunction = (ctx: ScriptContext) => void | Promise<void>;

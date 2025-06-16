@@ -15,6 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export class ScriptLoader {
   private scripts: Map<string, ScriptFunction> = new Map();
   private roomUpdateCallbacks: Map<World, ((deltaTime: number) => void)[]> = new Map();
+  private roomMessageHandlers: Map<World, Map<string, ((data: any, senderId?: string) => void)[]>> = new Map();
 
   constructor(private roomManager: RoomManager, private database: Database) {}
 
@@ -55,6 +56,26 @@ export class ScriptLoader {
           this.roomUpdateCallbacks.set(world, []);
         }
         this.roomUpdateCallbacks.get(world)!.push(callback);
+      },
+
+      sendToClient: (channel: string, data: any, playerId?: string) => {
+        // Get the room reference through roomManager
+        const rooms = this.roomManager.getRooms();
+        const room = rooms.find(r => r.world === world);
+        if (room) {
+          room.sendScriptMessage(channel, data, playerId);
+        }
+      },
+
+      onMessage: (channel: string, callback: (data: any, senderId?: string) => void) => {
+        if (!this.roomMessageHandlers.has(world)) {
+          this.roomMessageHandlers.set(world, new Map());
+        }
+        const worldHandlers = this.roomMessageHandlers.get(world)!;
+        if (!worldHandlers.has(channel)) {
+          worldHandlers.set(channel, []);
+        }
+        worldHandlers.get(channel)!.push(callback);
       },
     };
   }
@@ -114,6 +135,22 @@ export class ScriptLoader {
           callback(deltaTime);
         } catch (error) {
           console.error("Error in script update callback:", error);
+        }
+      }
+    }
+  }
+
+  handleIncomingMessage(world: World, channel: string, data: any, senderId?: string): void {
+    const worldHandlers = this.roomMessageHandlers.get(world);
+    if (worldHandlers) {
+      const handlers = worldHandlers.get(channel);
+      if (handlers) {
+        for (const handler of handlers) {
+          try {
+            handler(data, senderId);
+          } catch (error) {
+            console.error(`Error in script message handler for channel ${channel}:`, error);
+          }
         }
       }
     }

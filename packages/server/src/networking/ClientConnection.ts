@@ -4,7 +4,8 @@ import {
   ClientMessage, 
   ServerMessage, 
   MessageType,
-  ErrorMessage 
+  ErrorMessage,
+  ScriptMessage 
 } from '@motionjs/common';
 import { RoomManager } from '../rooms/RoomManager.js';
 import { EventEmitter } from 'events';
@@ -71,6 +72,13 @@ export class ClientConnection extends EventEmitter {
           room?.handlePlayerInput(this.playerId, message.input);
         }
         break;
+        
+      case MessageType.ScriptMessage:
+        if (this.roomId && this.playerId) {
+          const room = this.roomManager.getRoom(this.roomId);
+          room?.handleScriptMessage(this.playerId, message.channel, message.data, message.targetPlayerId);
+        }
+        break;
     }
   }
   
@@ -128,5 +136,9 @@ export class ClientConnection extends EventEmitter {
   
   disconnect(): void {
     this.ws.close();
+  }
+  
+  getPlayerId(): string | null {
+    return this.playerId;
   }
 }
