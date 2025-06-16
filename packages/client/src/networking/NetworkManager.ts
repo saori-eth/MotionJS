@@ -125,7 +125,7 @@ export class NetworkManager {
     }
   }
   
-  joinRoom(roomId: string, playerName: string): void {
+  joinRoom(roomId: string | undefined, playerName: string): void {
     const message: JoinRoomMessage = {
       type: MessageType.JoinRoom,
       roomId,

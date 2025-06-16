@@ -211,6 +211,10 @@ export class Room {
     return this.players.size;
   }
 
+  isAvailable(): boolean {
+    return this.players.size < this.config.maxPlayers;
+  }
+
   handleScriptMessage(senderId: string, channel: string, data: any, targetPlayerId?: string): void {
     if (this.scriptLoader) {
       this.scriptLoader.handleIncomingMessage(this.world, channel, data, senderId);

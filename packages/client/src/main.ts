@@ -15,7 +15,6 @@ lobby.innerHTML = `
 appElement.appendChild(lobby);
 
 document.getElementById('play-btn')?.addEventListener('click', () => {
-  const roomId = 'default';
   lobby.remove();
-  game.joinRoom(roomId);
+  game.joinRoom();
 });

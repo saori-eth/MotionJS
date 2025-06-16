@@ -21,7 +21,7 @@ export enum MessageType {
 
 export interface JoinRoomMessage {
   type: MessageType.JoinRoom;
-  roomId: string;
+  roomId?: string;
   playerName: string;
 }
 

@@ -37,7 +37,7 @@ export class Game {
     });
   }
   
-  async joinRoom(roomId: string): Promise<void> {
+  async joinRoom(roomId?: string): Promise<void> {
     try {
       // Initialize renderer and related components when actually joining
       this.renderer = new Renderer(this.container);

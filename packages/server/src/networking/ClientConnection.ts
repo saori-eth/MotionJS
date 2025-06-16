@@ -59,7 +59,7 @@ export class ClientConnection extends EventEmitter {
   private handleMessage(message: ClientMessage): void {
     switch (message.type) {
       case MessageType.JoinRoom:
-        this.handleJoinRoom(message.roomId, message.playerName);
+        this.handleJoinRoom(message.roomId || null, message.playerName);
         break;
         
       case MessageType.LeaveRoom:
@@ -82,16 +82,19 @@ export class ClientConnection extends EventEmitter {
     }
   }
   
-  private async handleJoinRoom(roomId: string, playerName: string): Promise<void> {
+  private async handleJoinRoom(roomId: string | null, playerName: string): Promise<void> {
     if (this.roomId) {
       this.handleLeaveRoom();
     }
     
-    const room = await this.roomManager.getOrCreateRoom(roomId);
+    const room = roomId 
+      ? await this.roomManager.getOrCreateRoom(roomId)
+      : await this.roomManager.findOrCreateAvailableRoom();
+      
     const result = room.addPlayer(this.id, playerName, this);
     
     if (result.success) {
-      this.roomId = roomId;
+      this.roomId = room.id;
       this.playerId = result.playerId!;
     } else {
       this.sendError('ROOM_FULL', result.error || 'Failed to join room');
