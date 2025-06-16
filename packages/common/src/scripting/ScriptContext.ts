@@ -31,6 +31,8 @@ export interface ScriptContext {
   db?: DatabaseAPI;
 
   broadcast?(message: any): void;
+
+  onUpdate(callback: (deltaTime: number) => void): void;
 }
 
 export type ScriptFunction = (ctx: ScriptContext) => void | Promise<void>;

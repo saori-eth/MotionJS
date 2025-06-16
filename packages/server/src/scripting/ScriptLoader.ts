@@ -14,6 +14,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export class ScriptLoader {
   private scripts: Map<string, ScriptFunction> = new Map();
+  private roomUpdateCallbacks: Map<World, ((deltaTime: number) => void)[]> = new Map();
 
   constructor(private roomManager: RoomManager, private database: Database) {}
 
@@ -47,6 +48,13 @@ export class ScriptLoader {
 
       broadcast: (message: any) => {
         console.log("Broadcasting:", message);
+      },
+
+      onUpdate: (callback: (deltaTime: number) => void) => {
+        if (!this.roomUpdateCallbacks.has(world)) {
+          this.roomUpdateCallbacks.set(world, []);
+        }
+        this.roomUpdateCallbacks.get(world)!.push(callback);
       },
     };
   }
@@ -94,6 +102,19 @@ export class ScriptLoader {
         console.log(`Executed script ${name} for room`);
       } catch (error) {
         console.error(`Failed to execute script ${name}:`, error);
+      }
+    }
+  }
+
+  updateRoom(world: World, deltaTime: number): void {
+    const callbacks = this.roomUpdateCallbacks.get(world);
+    if (callbacks) {
+      for (const callback of callbacks) {
+        try {
+          callback(deltaTime);
+        } catch (error) {
+          console.error("Error in script update callback:", error);
+        }
       }
     }
   }

@@ -93,6 +93,11 @@ export class Game {
         avatar.updateFromPlayer(player, deltaTime);
       }
     }
+    
+    // Update scripts
+    if (this.scriptLoader) {
+      this.scriptLoader.update();
+    }
   }
   
   private updateFromSnapshot(): void {

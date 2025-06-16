@@ -10,6 +10,8 @@ import * as THREE from "three";
 export class ScriptLoader {
   private scripts: Map<string, ScriptFunction> = new Map();
   private context: ScriptContext;
+  private updateCallbacks: ((deltaTime: number) => void)[] = [];
+  private lastUpdateTime: number = performance.now();
 
   constructor(private world: World, private renderer: Renderer) {
     this.context = this.createContext();
@@ -73,6 +75,10 @@ export class ScriptLoader {
         console.log(`Loading audio: ${path}`);
         return null;
       },
+
+      onUpdate: (callback: (deltaTime: number) => void) => {
+        this.updateCallbacks.push(callback);
+      },
     };
   }
 
@@ -104,6 +110,20 @@ export class ScriptLoader {
       }
     } catch (error) {
       console.error("Failed to load scripts:", error);
+    }
+  }
+
+  update(): void {
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - this.lastUpdateTime) / 1000; // Convert to seconds
+    this.lastUpdateTime = currentTime;
+
+    for (const callback of this.updateCallbacks) {
+      try {
+        callback(deltaTime);
+      } catch (error) {
+        console.error("Error in script update callback:", error);
+      }
     }
   }
 }

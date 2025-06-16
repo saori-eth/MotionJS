@@ -12,6 +12,7 @@ import {
 import { PhysicsWorld } from "../physics/PhysicsWorld.js";
 import { ClientConnection } from "../networking/ClientConnection.js";
 import { Database } from "../database/Database.js";
+import { ScriptLoader } from "../scripting/ScriptLoader.js";
 
 export interface RoomConfig {
   maxPlayers: number;
@@ -26,6 +27,7 @@ export class Room {
   private frameId: number = 0;
   private tickInterval: NodeJS.Timeout | null = null;
   private lastTickTime: number = Date.now();
+  private scriptLoader: ScriptLoader | null = null;
 
   constructor(
     public readonly id: string,
@@ -34,6 +36,10 @@ export class Room {
   ) {
     this.world = new World();
     this.physics = new PhysicsWorld();
+  }
+
+  setScriptLoader(scriptLoader: ScriptLoader): void {
+    this.scriptLoader = scriptLoader;
   }
 
   start(): void {
@@ -151,6 +157,11 @@ export class Room {
         player.transform.rotation = physicsBody.quaternion;
         player.velocity = physicsBody.velocity;
       }
+    }
+
+    // Update scripts
+    if (this.scriptLoader) {
+      this.scriptLoader.updateRoom(this.world, deltaTime);
     }
 
     const snapshot: Snapshot = {

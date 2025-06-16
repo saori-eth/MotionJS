@@ -25,8 +25,9 @@ export class RoomManager {
       this.rooms.set(roomId, room);
       console.log(`Created room: ${roomId}`);
       
-      // Execute scripts for the new room
+      // Set the script loader on the room
       if (this.scriptLoader) {
+        room.setScriptLoader(this.scriptLoader);
         await this.scriptLoader.executeScriptsForRoom(room.world);
       }
     }

@@ -9,7 +9,8 @@
       "Bash(pnpm add:*)",
       "Bash(pnpm -C packages/server add -D @types/cannon)",
       "Bash(pnpm -C packages/client add -D three @types/three)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(pnpm dev:*)"
     ],
     "deny": []
   }
