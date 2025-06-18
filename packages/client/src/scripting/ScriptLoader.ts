@@ -16,7 +16,10 @@ export class ScriptLoader {
   private lastUpdateTime: number = performance.now();
   private spawnedPrimitives: Map<string, THREE.Mesh> = new Map();
   private primitiveIdCounter: number = 0;
-  private messageHandlers: Map<string, ((data: any, senderId?: string) => void)[]> = new Map();
+  private messageHandlers: Map<
+    string,
+    ((data: any, senderId?: string) => void)[]
+  > = new Map();
   private networkManager: any = null;
 
   constructor(private world: World, private renderer: Renderer) {
@@ -98,26 +101,26 @@ export class ScriptLoader {
 
       spawnPrimitive: (options: PrimitiveOptions): SpawnedPrimitive => {
         const id = `primitive_${this.primitiveIdCounter++}`;
-        
+
         // Create geometry based on type
         let geometry: THREE.BufferGeometry;
         switch (options.type) {
-          case 'box':
+          case "box":
             geometry = new THREE.BoxGeometry(1, 1, 1);
             break;
-          case 'sphere':
+          case "sphere":
             geometry = new THREE.SphereGeometry(0.5, 32, 16);
             break;
-          case 'cylinder':
+          case "cylinder":
             geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
             break;
-          case 'cone':
+          case "cone":
             geometry = new THREE.ConeGeometry(0.5, 1, 32);
             break;
-          case 'torus':
+          case "torus":
             geometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100);
             break;
-          case 'plane':
+          case "plane":
             geometry = new THREE.PlaneGeometry(1, 1);
             break;
         }
@@ -130,13 +133,21 @@ export class ScriptLoader {
 
         // Create mesh
         const mesh = new THREE.Mesh(geometry, material);
-        
+
         // Set initial transform
         if (options.position) {
-          mesh.position.set(options.position.x, options.position.y, options.position.z);
+          mesh.position.set(
+            options.position.x,
+            options.position.y,
+            options.position.z
+          );
         }
         if (options.rotation) {
-          mesh.rotation.set(options.rotation.x, options.rotation.y, options.rotation.z);
+          mesh.rotation.set(
+            options.rotation.x,
+            options.rotation.y,
+            options.rotation.z
+          );
         }
         if (options.scale) {
           mesh.scale.set(options.scale.x, options.scale.y, options.scale.z);
@@ -172,16 +183,19 @@ export class ScriptLoader {
         if (this.networkManager) {
           this.networkManager.sendScriptMessage(channel, data);
         } else {
-          console.warn('NetworkManager not set, cannot send message to server');
+          console.warn("NetworkManager not set, cannot send message to server");
         }
       },
 
-      onMessage: (channel: string, callback: (data: any, senderId?: string) => void) => {
+      onMessage: (
+        channel: string,
+        callback: (data: any, senderId?: string) => void
+      ) => {
         if (!this.messageHandlers.has(channel)) {
           this.messageHandlers.set(channel, []);
         }
         this.messageHandlers.get(channel)!.push(callback);
-        
+
         // Register with network manager if available
         if (this.networkManager) {
           this.networkManager.onScriptMessage(channel, callback);
@@ -192,32 +206,25 @@ export class ScriptLoader {
 
   async loadScripts(): Promise<void> {
     try {
-      // Import all scripts from the scripts directory
-      // @ts-ignore - Vite import.meta.glob
-      const scriptModules = import.meta.glob("../../../../scripts/*.ts", {
-        eager: false,
-      });
+      // Dynamically import only the entry script (index.ts) from the scripts directory
+      const module: any = await import(
+        /* @vite-ignore */ "../../../../scripts/index.ts"
+      );
 
-      console.log("Found script modules:", Object.keys(scriptModules));
+      if (module.default && typeof module.default === "function") {
+        const scriptName = "index";
+        this.scripts.set(scriptName, module.default);
+        console.log(`Loaded client script: ${scriptName}`);
 
-      for (const [path, importFn] of Object.entries(scriptModules)) {
-        try {
-          const module = (await importFn()) as any;
-          if (module.default && typeof module.default === "function") {
-            const scriptName =
-              path.split("/").pop()?.replace(/\.ts$/, "") || "";
-            this.scripts.set(scriptName, module.default);
-            console.log(`Loaded client script: ${scriptName}`);
-
-            // Execute the script immediately
-            await module.default(this.context);
-          }
-        } catch (error) {
-          console.error(`Failed to load script ${path}:`, error);
-        }
+        // Execute the script immediately
+        await module.default(this.context);
+      } else {
+        console.warn(
+          "scripts/index.ts does not have a default export function to execute"
+        );
       }
     } catch (error) {
-      console.error("Failed to load scripts:", error);
+      console.error("Failed to load scripts/index.ts:", error);
     }
   }
 
@@ -242,7 +249,7 @@ export class ScriptLoader {
       if (mesh.geometry) mesh.geometry.dispose();
       if (mesh.material) {
         if (Array.isArray(mesh.material)) {
-          mesh.material.forEach(m => m.dispose());
+          mesh.material.forEach((m) => m.dispose());
         } else {
           mesh.material.dispose();
         }
@@ -250,7 +257,7 @@ export class ScriptLoader {
     }
     this.spawnedPrimitives.clear();
     this.updateCallbacks = [];
-    
+
     // Unregister message handlers
     if (this.networkManager) {
       for (const [channel, handlers] of this.messageHandlers) {

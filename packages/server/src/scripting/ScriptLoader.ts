@@ -14,8 +14,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export class ScriptLoader {
   private scripts: Map<string, ScriptFunction> = new Map();
-  private roomUpdateCallbacks: Map<World, ((deltaTime: number) => void)[]> = new Map();
-  private roomMessageHandlers: Map<World, Map<string, ((data: any, senderId?: string) => void)[]>> = new Map();
+  private roomUpdateCallbacks: Map<World, ((deltaTime: number) => void)[]> =
+    new Map();
+  private roomMessageHandlers: Map<
+    World,
+    Map<string, ((data: any, senderId?: string) => void)[]>
+  > = new Map();
 
   constructor(private roomManager: RoomManager, private database: Database) {}
 
@@ -61,13 +65,16 @@ export class ScriptLoader {
       sendToClient: (channel: string, data: any, playerId?: string) => {
         // Get the room reference through roomManager
         const rooms = this.roomManager.getRooms();
-        const room = rooms.find(r => r.world === world);
+        const room = rooms.find((r) => r.world === world);
         if (room) {
           room.sendScriptMessage(channel, data, playerId);
         }
       },
 
-      onMessage: (channel: string, callback: (data: any, senderId?: string) => void) => {
+      onMessage: (
+        channel: string,
+        callback: (data: any, senderId?: string) => void
+      ) => {
         if (!this.roomMessageHandlers.has(world)) {
           this.roomMessageHandlers.set(world, new Map());
         }
@@ -84,31 +91,41 @@ export class ScriptLoader {
     const scriptsDir = join(__dirname, "..", "..", "..", "..", "scripts");
 
     try {
-      await fs.access(scriptsDir);
-      const files = await fs.readdir(scriptsDir);
+      // Prefer TypeScript index first, fall back to JavaScript
+      const indexFiles = ["index.ts", "index.js"];
+      let found = false;
 
-      for (const file of files) {
-        if (file.endsWith(".ts") || file.endsWith(".js")) {
-          try {
-            const scriptPath = join(scriptsDir, file);
-            const module = await import(scriptPath);
+      for (const indexFile of indexFiles) {
+        const scriptPath = join(scriptsDir, indexFile);
+        try {
+          await fs.access(scriptPath);
+          const module = await import(scriptPath);
 
-            if (module.default && typeof module.default === "function") {
-              const scriptName = file.replace(/\\.(ts|js)$/, "");
-              this.scripts.set(scriptName, module.default);
-              console.log(`Loaded server script: ${scriptName}`);
+          if (module.default && typeof module.default === "function") {
+            const scriptName = indexFile.replace(/\.(ts|js)$/, "");
+            this.scripts.set(scriptName, module.default);
+            console.log(`Loaded server script: ${scriptName}`);
 
-              // Execute scripts for each room
-              const rooms = this.roomManager.getRooms();
-              for (const room of rooms) {
-                const context = this.createContext(room.world);
-                await module.default(context);
-              }
+            // Execute script for each existing room immediately
+            const rooms = this.roomManager.getRooms();
+            for (const room of rooms) {
+              const context = this.createContext(room.world);
+              await module.default(context);
             }
-          } catch (error) {
-            console.error(`Failed to load script ${file}:`, error);
+            found = true;
+            break; // Stop after first index file found
+          } else {
+            console.warn(`${indexFile} does not export a default function`);
           }
+        } catch (err) {
+          // Ignore if file doesn't exist, continue to next extension
         }
+      }
+
+      if (!found) {
+        console.warn(
+          "No index script found in scripts directory. Skipping script loading."
+        );
       }
     } catch (error) {
       console.log("Scripts directory not found, skipping script loading");
@@ -140,7 +157,12 @@ export class ScriptLoader {
     }
   }
 
-  handleIncomingMessage(world: World, channel: string, data: any, senderId?: string): void {
+  handleIncomingMessage(
+    world: World,
+    channel: string,
+    data: any,
+    senderId?: string
+  ): void {
     const worldHandlers = this.roomMessageHandlers.get(world);
     if (worldHandlers) {
       const handlers = worldHandlers.get(channel);
@@ -149,7 +171,10 @@ export class ScriptLoader {
           try {
             handler(data, senderId);
           } catch (error) {
-            console.error(`Error in script message handler for channel ${channel}:`, error);
+            console.error(
+              `Error in script message handler for channel ${channel}:`,
+              error
+            );
           }
         }
       }
