@@ -34,7 +34,17 @@ export class PlayerController {
     if (this.keys.has('a')) this.movement.x -= 1;
     if (this.keys.has('d')) this.movement.x += 1;
 
-    this.movement.normalize();
+    // Normalize horizontal movement only
+    const horizontalLength = Math.sqrt(this.movement.x * this.movement.x + this.movement.z * this.movement.z);
+    if (horizontalLength > 0) {
+      this.movement.x /= horizontalLength;
+      this.movement.z /= horizontalLength;
+    }
+
+    // Set movement.y = 1 when jumping
+    if (this.keys.has(' ')) {
+      this.movement.y = 1;
+    }
 
     const store = useGameStore.getState();
     const sequenceNumber = store.incrementInputSequence();
@@ -47,7 +57,6 @@ export class PlayerController {
       },
       rotation: { x: 0, y: 0, z: 0, w: 1 },
       actions: {
-        jump: this.keys.has(' '),
         fire: this.keys.has('e'),
       },
       timestamp: Date.now(),

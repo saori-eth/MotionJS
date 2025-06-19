@@ -24,7 +24,7 @@ export class PhysicsWorld {
       position: new CANNON.Vec3(0, 0, 0),
     });
 
-    this.world.add(groundBody);
+    this.world.addBody(groundBody);
   }
 
   createPlayerBody(playerId: string): CANNON.Body {
@@ -65,7 +65,7 @@ export class PhysicsWorld {
     body.fixedRotation = true;
     body.updateMassProperties();
 
-    this.world.add(body);
+    this.world.addBody(body);
     this.bodies.set(playerId, body);
 
     return body;
@@ -79,15 +79,7 @@ export class PhysicsWorld {
     }
   }
 
-  applyPlayerInput(playerId: string, movement: Vector3): void {
-    const body = this.bodies.get(playerId);
-    if (!body) return;
-
-    // Direct velocity control for responsive movement
-    const speed = 10;
-    body.velocity.x = movement.x * speed;
-    body.velocity.z = movement.z * speed;
-
+  private _applyHoverAndDamping(body: CANNON.Body): void {
     // Floating capsule behavior
     const hoverHeight = 1.5; // Desired hover height above ground
     const currentHeight = body.position.y;
@@ -100,19 +92,52 @@ export class PhysicsWorld {
       body.velocity.y += hoverForce * (1 / 60); // Apply force over fixed timestep
     }
 
-    // Handle jumping
-    const canJump = groundDistance < 0.3; // Can jump when close to hover height
-    if (movement.y > 0 && canJump) {
-      body.velocity.y = 12; // Jump velocity
-    }
-
     // Apply stronger damping for floating effect
     if (groundDistance >= -0.1 && groundDistance <= 0.5) {
       body.velocity.y *= 0.9; // Extra damping near hover height
     }
+    
+    // Apply horizontal damping to prevent infinite sliding
+    const horizontalDamping = 0.9; // Higher value = less damping, lower value = more damping
+    body.velocity.x *= horizontalDamping;
+    body.velocity.z *= horizontalDamping;
+  }
+
+  applyPlayerInput(playerId: string, movement: Vector3): void {
+    const body = this.bodies.get(playerId);
+    if (!body) return;
+
+    // Direct velocity control for responsive movement
+    const speed = 10;
+    
+    // Set target velocity based on input
+    const targetVelX = movement.x * speed;
+    const targetVelZ = movement.z * speed;
+    
+    // Apply acceleration towards target velocity (more responsive than direct setting)
+    const acceleration = 50; // How quickly to reach target velocity
+    const deltaVelX = targetVelX - body.velocity.x;
+    const deltaVelZ = targetVelZ - body.velocity.z;
+    
+    body.velocity.x += deltaVelX * acceleration * (1 / 60);
+    body.velocity.z += deltaVelZ * acceleration * (1 / 60);
+
+    // Handle jumping
+    const hoverHeight = 1.5; // Desired hover height above ground
+    const currentHeight = body.position.y;
+    const groundDistance = currentHeight - hoverHeight;
+    const canJump = groundDistance < 0.3; // Can jump when close to hover height
+    if (movement.y > 0 && canJump) {
+      body.velocity.y = 12; // Jump velocity
+    }
   }
 
   step(deltaTime: number): void {
+    // Apply hover physics to all player bodies before world step
+    for (const body of this.bodies.values()) {
+      this._applyHoverAndDamping(body);
+    }
+
     this.world.step(this.fixedTimeStep, deltaTime, this.maxSubSteps);
   }
 
@@ -155,7 +180,8 @@ export class PhysicsWorld {
     );
 
     const result = new CANNON.RaycastResult();
-    const hit = this.world.raycastClosest(from, to, {}, result);
+    this.world.rayTest(from, to, result);
+    const hit = result.hasHit;
 
     if (hit && result.body) {
       let entityId: string | undefined;

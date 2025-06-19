@@ -147,13 +147,8 @@ export class Room {
 
     player.input = input;
 
-    const movement = {
-      x: input.movement.x,
-      y: input.actions.jump ? 1 : 0,
-      z: input.movement.z,
-    };
-
-    this.physics.applyPlayerInput(playerId, movement);
+    // Movement vector already contains jump information in y component
+    this.physics.applyPlayerInput(playerId, input.movement);
   }
 
   private tick(): void {
