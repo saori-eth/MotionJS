@@ -8,10 +8,10 @@ Scripts are TypeScript files located in the `scripts/` directory at the root of 
 
 ```typescript
 // scripts/my-script.ts
-import { ScriptContext } from "@motionjs/common";
+import { ScriptContext } from '@motionjs/common';
 
 export default async function myScript(ctx: ScriptContext) {
-  console.log("My script is running!");
+  console.log('My script is running!');
 
   if (ctx.isClient) {
     // Client-side logic here
@@ -53,7 +53,7 @@ Registers a function to be called on every frame (tick on the server).
 **Example:**
 
 ```typescript
-ctx.onUpdate((deltaTime) => {
+ctx.onUpdate(deltaTime => {
   // This code runs on every frame
 });
 ```
@@ -68,7 +68,7 @@ Listens for messages on a specific channel. On the client, it receives messages 
 **Example (Client):**
 
 ```typescript
-ctx.onMessage("sync-animation", (data) => {
+ctx.onMessage('sync-animation', data => {
   // Update animation based on server data
 });
 ```
@@ -113,12 +113,12 @@ Creates and spawns a primitive 3D object into the scene.
 
 ```typescript
 const cube = ctx.spawnPrimitive({
-  type: "box",
+  type: 'box',
   position: { x: 0, y: 1, z: 0 },
   color: 0x00ff00,
 });
 
-ctx.onUpdate((dt) => {
+ctx.onUpdate(dt => {
   cube.setRotation({ x: 0, y: performance.now() / 1000, z: 0 });
 });
 ```
@@ -133,7 +133,7 @@ Sends a message to the server.
 **Example:**
 
 ```typescript
-ctx.sendToServer("player-jump", { height: 5 });
+ctx.sendToServer('player-jump', { height: 5 });
 ```
 
 ### `loadModel(path)` and `loadAudio(path)`
@@ -181,7 +181,7 @@ Provides methods to interact with the project's database, typically for player d
 **Example:**
 
 ```typescript
-ctx.onMessage("enemy-defeated", async (data, senderId) => {
+ctx.onMessage('enemy-defeated', async (data, senderId) => {
   if (senderId) {
     await ctx.db.addCurrency(senderId, 100); // Give 100 coins
   }
@@ -204,7 +204,7 @@ ctx.onUpdate((deltaTime: number) => {
 
   // Broadcast animation state to all clients every frame
   if (ctx.sendToClient) {
-    ctx.sendToClient("sync-animation", {
+    ctx.sendToClient('sync-animation', {
       time: animationTime,
     });
   }
@@ -216,12 +216,12 @@ ctx.onUpdate((deltaTime: number) => {
 ```typescript
 // Spawn the primitive to be animated
 const cube = ctx.spawnPrimitive({
-  type: "box",
+  type: 'box',
   position: { x: 2, y: 2, z: 0 },
 });
 
 // Listen for animation updates from server
-ctx.onMessage("sync-animation", (data) => {
+ctx.onMessage('sync-animation', data => {
   const rotationY = data.time;
   cube.setRotation({ x: 0, y: rotationY, z: 0 });
 });

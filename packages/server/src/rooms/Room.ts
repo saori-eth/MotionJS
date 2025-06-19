@@ -10,11 +10,11 @@ import {
   SnapshotMessage,
   ScriptBroadcastMessage,
   Vector3,
-} from "@motionjs/common";
-import { PhysicsWorld } from "../physics/PhysicsWorld.js";
-import { ClientConnection } from "../networking/ClientConnection.js";
-import { Database } from "../database/Database.js";
-import { ScriptLoader } from "../scripting/ScriptLoader.js";
+} from '@motionjs/common';
+import { PhysicsWorld } from '../physics/PhysicsWorld.js';
+import { ClientConnection } from '../networking/ClientConnection.js';
+import { Database } from '../database/Database.js';
+import { ScriptLoader } from '../scripting/ScriptLoader.js';
 
 export interface RoomConfig {
   maxPlayers: number;
@@ -63,7 +63,7 @@ export class Room {
     spawnPosition?: Vector3
   ): { success: boolean; playerId?: string; error?: string } {
     if (this.players.size >= this.config.maxPlayers) {
-      return { success: false, error: "Room is full" };
+      return { success: false, error: 'Room is full' };
     }
 
     const playerId = this.database.createUser(playerName);
@@ -227,19 +227,9 @@ export class Room {
     return this.players.size < this.config.maxPlayers;
   }
 
-  handleScriptMessage(
-    senderId: string,
-    channel: string,
-    data: any,
-    targetPlayerId?: string
-  ): void {
+  handleScriptMessage(senderId: string, channel: string, data: any, targetPlayerId?: string): void {
     if (this.scriptLoader) {
-      this.scriptLoader.handleIncomingMessage(
-        this.world,
-        channel,
-        data,
-        senderId
-      );
+      this.scriptLoader.handleIncomingMessage(this.world, channel, data, senderId);
     }
 
     const broadcastMessage: ScriptBroadcastMessage = {

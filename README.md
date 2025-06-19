@@ -26,6 +26,7 @@ pnpm dev
 ```
 
 This will start:
+
 - Client dev server at http://localhost:3000
 - Game server at ws://localhost:8080
 
@@ -51,7 +52,7 @@ import { ScriptContext } from '@motionjs/common';
 export default async function myScript(ctx: ScriptContext) {
   // Access the ECS world
   const entity = ctx.world.createEntity();
-  
+
   // Check environment
   if (ctx.isServer) {
     // Server-only code
@@ -60,7 +61,7 @@ export default async function myScript(ctx: ScriptContext) {
     // Client-only code
     const model = await ctx.loadModel?.('/assets/model.glb');
   }
-  
+
   // Raycast (works on both sides)
   const hit = ctx.raycast(origin, direction);
 }

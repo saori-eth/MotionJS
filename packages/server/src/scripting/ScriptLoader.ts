@@ -1,29 +1,24 @@
-import { promises as fs } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-import {
-  World,
-  ScriptContext,
-  ScriptFunction,
-  DatabaseAPI,
-} from "@motionjs/common";
-import { RoomManager } from "../rooms/RoomManager.js";
-import { Database } from "../database/Database.js";
+import { promises as fs } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { World, ScriptContext, ScriptFunction, DatabaseAPI } from '@motionjs/common';
+import { RoomManager } from '../rooms/RoomManager.js';
+import { Database } from '../database/Database.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export class ScriptLoader {
   private scripts: Map<string, ScriptFunction> = new Map();
-  private roomUpdateCallbacks: Map<World, ((deltaTime: number) => void)[]> =
+  private roomUpdateCallbacks: Map<World, ((deltaTime: number) => void)[]> = new Map();
+  private roomMessageHandlers: Map<World, Map<string, ((data: any, senderId?: string) => void)[]>> =
     new Map();
-  private roomMessageHandlers: Map<
-    World,
-    Map<string, ((data: any, senderId?: string) => void)[]>
-  > = new Map();
   private isReloading: boolean = false;
   private lastScriptVersion: number = 0;
 
-  constructor(private roomManager: RoomManager, private database: Database) {}
+  constructor(
+    private roomManager: RoomManager,
+    private database: Database
+  ) {}
 
   private createContext(world: World): ScriptContext {
     const dbApi: DatabaseAPI = {
@@ -54,7 +49,7 @@ export class ScriptLoader {
       db: dbApi,
 
       broadcast: (message: any) => {
-        console.log("Broadcasting:", message);
+        console.log('Broadcasting:', message);
       },
 
       onUpdate: (callback: (deltaTime: number) => void) => {
@@ -67,16 +62,13 @@ export class ScriptLoader {
       sendToClient: (channel: string, data: any, playerId?: string) => {
         // Get the room reference through roomManager
         const rooms = this.roomManager.getRooms();
-        const room = rooms.find((r) => r.world === world);
+        const room = rooms.find(r => r.world === world);
         if (room) {
           room.sendScriptMessage(channel, data, playerId);
         }
       },
 
-      onMessage: (
-        channel: string,
-        callback: (data: any, senderId?: string) => void
-      ) => {
+      onMessage: (channel: string, callback: (data: any, senderId?: string) => void) => {
         if (!this.roomMessageHandlers.has(world)) {
           this.roomMessageHandlers.set(world, new Map());
         }
@@ -90,11 +82,11 @@ export class ScriptLoader {
   }
 
   async loadScripts(): Promise<void> {
-    const scriptsDir = join(__dirname, "..", "..", "..", "..", "scripts");
+    const scriptsDir = join(__dirname, '..', '..', '..', '..', 'scripts');
 
     try {
       // Prefer TypeScript index first, fall back to JavaScript
-      const indexFiles = ["index.ts", "index.js"];
+      const indexFiles = ['index.ts', 'index.js'];
       let found = false;
 
       for (const indexFile of indexFiles) {
@@ -103,8 +95,8 @@ export class ScriptLoader {
           await fs.access(scriptPath);
           const module = await import(scriptPath);
 
-          if (module.default && typeof module.default === "function") {
-            const scriptName = indexFile.replace(/\.(ts|js)$/, "");
+          if (module.default && typeof module.default === 'function') {
+            const scriptName = indexFile.replace(/\.(ts|js)$/, '');
             this.scripts.set(scriptName, module.default);
             console.log(`Loaded server script: ${scriptName}`);
 
@@ -125,12 +117,10 @@ export class ScriptLoader {
       }
 
       if (!found) {
-        console.warn(
-          "No index script found in scripts directory. Skipping script loading."
-        );
+        console.warn('No index script found in scripts directory. Skipping script loading.');
       }
     } catch (error) {
-      console.log("Scripts directory not found, skipping script loading");
+      console.log('Scripts directory not found, skipping script loading');
     }
   }
 
@@ -153,18 +143,13 @@ export class ScriptLoader {
         try {
           callback(deltaTime);
         } catch (error) {
-          console.error("Error in script update callback:", error);
+          console.error('Error in script update callback:', error);
         }
       }
     }
   }
 
-  handleIncomingMessage(
-    world: World,
-    channel: string,
-    data: any,
-    senderId?: string
-  ): void {
+  handleIncomingMessage(world: World, channel: string, data: any, senderId?: string): void {
     const worldHandlers = this.roomMessageHandlers.get(world);
     if (worldHandlers) {
       const handlers = worldHandlers.get(channel);
@@ -173,10 +158,7 @@ export class ScriptLoader {
           try {
             handler(data, senderId);
           } catch (error) {
-            console.error(
-              `Error in script message handler for channel ${channel}:`,
-              error
-            );
+            console.error(`Error in script message handler for channel ${channel}:`, error);
           }
         }
       }
@@ -187,7 +169,7 @@ export class ScriptLoader {
    * Cleanly dispose script state for all rooms while preserving core room state
    */
   private disposeScriptState(): void {
-    console.log("Disposing server script state...");
+    console.log('Disposing server script state...');
 
     // Clear update callbacks for all rooms
     this.roomUpdateCallbacks.clear();
@@ -204,12 +186,12 @@ export class ScriptLoader {
    */
   async reloadScripts(): Promise<void> {
     if (this.isReloading) {
-      console.log("Script reload already in progress, skipping...");
+      console.log('Script reload already in progress, skipping...');
       return;
     }
 
     this.isReloading = true;
-    console.log("🔄 Reloading server scripts...");
+    console.log('🔄 Reloading server scripts...');
 
     try {
       // Dispose script-specific state
@@ -218,22 +200,20 @@ export class ScriptLoader {
       // Increment version for cache busting
       this.lastScriptVersion = Date.now();
 
-      const scriptsDir = join(__dirname, "..", "..", "..", "..", "scripts");
+      const scriptsDir = join(__dirname, '..', '..', '..', '..', 'scripts');
 
       // Clear module cache for the script files (cache busting handled by query param)
-      const indexFiles = ["index.ts", "index.js"];
+      const indexFiles = ['index.ts', 'index.js'];
 
       // Reload scripts using the existing loadScripts logic
       for (const indexFile of indexFiles) {
         const scriptPath = join(scriptsDir, indexFile);
         try {
           await fs.access(scriptPath);
-          const module = await import(
-            `${scriptPath}?t=${this.lastScriptVersion}`
-          );
+          const module = await import(`${scriptPath}?t=${this.lastScriptVersion}`);
 
-          if (module.default && typeof module.default === "function") {
-            const scriptName = indexFile.replace(/\.(ts|js)$/, "");
+          if (module.default && typeof module.default === 'function') {
+            const scriptName = indexFile.replace(/\.(ts|js)$/, '');
             this.scripts.set(scriptName, module.default);
             console.log(`✅ Reloaded server script: ${scriptName}`);
 
@@ -250,9 +230,9 @@ export class ScriptLoader {
         }
       }
 
-      console.log("🎮 Server scripts reloaded successfully!");
+      console.log('🎮 Server scripts reloaded successfully!');
     } catch (error) {
-      console.error("❌ Failed to reload server scripts:", error);
+      console.error('❌ Failed to reload server scripts:', error);
     } finally {
       this.isReloading = false;
     }

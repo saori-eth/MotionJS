@@ -1,11 +1,11 @@
-import { ScriptContext } from "@motionjs/common";
+import { ScriptContext } from '@motionjs/common';
 import {
   createAnimationObjects,
   createPrimitiveConfigs,
   updatePrimitiveFromAnimation,
   spawnPrimitivesFromConfigs,
   AnimationObject,
-} from "./helper";
+} from './helper';
 
 /**
  * 🔥 HOT RELOAD ENABLED! 🔥
@@ -21,7 +21,7 @@ import {
  */
 
 export default async function exampleScript(ctx: ScriptContext) {
-  console.log(`Example script loaded on ${ctx.isClient ? "client" : "server"}`);
+  console.log(`Example script loaded on ${ctx.isClient ? 'client' : 'server'}`);
 
   // Server-controlled synchronized animation
   if (ctx.isServer) {
@@ -34,7 +34,7 @@ export default async function exampleScript(ctx: ScriptContext) {
 
       // Broadcast animation state to all clients every frame
       if (ctx.sendToClient) {
-        ctx.sendToClient("sync-animation", {
+        ctx.sendToClient('sync-animation', {
           time: animationTime,
           objects: createAnimationObjects(animationTime),
         });
@@ -42,15 +42,11 @@ export default async function exampleScript(ctx: ScriptContext) {
     });
 
     // Handle client requests for current state
-    ctx.onMessage("request-animation-state", (data, senderId) => {
-      console.log(
-        `📡 Server: Received animation state request from ${
-          senderId || "unknown"
-        }`
-      );
+    ctx.onMessage('request-animation-state', (data, senderId) => {
+      console.log(`📡 Server: Received animation state request from ${senderId || 'unknown'}`);
       if (ctx.sendToClient && senderId) {
         ctx.sendToClient(
-          "sync-animation",
+          'sync-animation',
           {
             time: animationTime,
             objects: createAnimationObjects(animationTime),
@@ -66,17 +62,14 @@ export default async function exampleScript(ctx: ScriptContext) {
   if (ctx.isClient && ctx.spawnPrimitive) {
     // Spawn synchronized primitives using helper functions
     const primitiveConfigs = createPrimitiveConfigs();
-    const primitives = spawnPrimitivesFromConfigs(
-      ctx.spawnPrimitive,
-      primitiveConfigs
-    );
+    const primitives = spawnPrimitivesFromConfigs(ctx.spawnPrimitive, primitiveConfigs);
 
     // Track if we've received initial state
     let hasInitialState = false;
     let hasRequestedState = false;
 
     // Listen for animation updates from server
-    ctx.onMessage("sync-animation", (data) => {
+    ctx.onMessage('sync-animation', data => {
       try {
         if (data.objects) {
           hasInitialState = true;
@@ -88,7 +81,7 @@ export default async function exampleScript(ctx: ScriptContext) {
           }
         }
       } catch (error) {
-        console.error("❌ Error handling sync-animation message:", error);
+        console.error('❌ Error handling sync-animation message:', error);
       }
     });
 
@@ -96,30 +89,28 @@ export default async function exampleScript(ctx: ScriptContext) {
     if (ctx.sendToServer && !hasRequestedState) {
       try {
         hasRequestedState = true;
-        console.log("🔄 Requesting initial animation state from server...");
-        ctx.sendToServer("request-animation-state", {});
+        console.log('🔄 Requesting initial animation state from server...');
+        ctx.sendToServer('request-animation-state', {});
 
         // If we don't receive state within 3 seconds, request again (for script reload cases)
         setTimeout(() => {
           if (!hasInitialState && ctx.sendToServer) {
-            console.log(
-              "🔄 Re-requesting animation state (didn't receive initial state)..."
-            );
+            console.log("🔄 Re-requesting animation state (didn't receive initial state)...");
             try {
-              ctx.sendToServer("request-animation-state", {});
+              ctx.sendToServer('request-animation-state', {});
             } catch (error) {
-              console.error("❌ Error re-requesting animation state:", error);
+              console.error('❌ Error re-requesting animation state:', error);
             }
           }
         }, 3000); // Increased from 2000ms to 3000ms
       } catch (error) {
-        console.error("❌ Error requesting initial animation state:", error);
+        console.error('❌ Error requesting initial animation state:', error);
       }
     }
 
     // Example of client-only animation: wireframe cone that spins locally
     const cone = ctx.spawnPrimitive({
-      type: "cone",
+      type: 'cone',
       position: { x: 0, y: 2, z: 2 },
       color: 0xffff00,
       wireframe: true,
@@ -133,13 +124,13 @@ export default async function exampleScript(ctx: ScriptContext) {
     });
 
     // Example of player interaction
-    ctx.onMessage("player-action", (data) => {
-      console.log("Received player action:", data);
+    ctx.onMessage('player-action', data => {
+      console.log('Received player action:', data);
     });
 
     // Destroy cone after 10 seconds
     setTimeout(() => {
-      console.log("Destroying cone after 10 seconds");
+      console.log('Destroying cone after 10 seconds');
       cone.destroy();
     }, 10000);
 

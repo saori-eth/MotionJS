@@ -9,8 +9,8 @@ import {
   ScriptMessage,
   ScriptBroadcastMessage,
   Vector3,
-} from "@motionjs/common";
-import { useGameStore } from "../store/gameStore";
+} from '@motionjs/common';
+import { useGameStore } from '../store/gameStore';
 
 export class NetworkManager {
   private ws: WebSocket | null = null;
@@ -18,10 +18,8 @@ export class NetworkManager {
   private reconnectDelay = 300; // start with 300ms for rapid first reconnect
   private reconnectAttempts = 0;
   private readonly maxReconnectDelay = 5000;
-  private scriptMessageHandlers: Map<
-    string,
-    ((data: any, senderId?: string) => void)[]
-  > = new Map();
+  private scriptMessageHandlers: Map<string, ((data: any, senderId?: string) => void)[]> =
+    new Map();
   private lastRoomId: string | undefined = undefined;
   private lastPlayerName: string | undefined = undefined;
   private lastSpawnPosition: Vector3 | undefined;
@@ -34,45 +32,41 @@ export class NetworkManager {
         this.ws = new WebSocket(this.serverUrl);
 
         this.ws.onopen = () => {
-          console.log("Connected to server");
+          console.log('Connected to server');
           useGameStore.getState().setConnected(true);
           // Reset reconnect attempts & delay after successful connection
           this.reconnectAttempts = 0;
           this.reconnectDelay = 300;
 
           if (this.lastPlayerName) {
-            console.log("Rejoining room after reconnect...", {
+            console.log('Rejoining room after reconnect...', {
               roomId: this.lastRoomId,
               playerName: this.lastPlayerName,
               spawnPosition: this.lastSpawnPosition,
             });
-            this.joinRoom(
-              this.lastRoomId,
-              this.lastPlayerName,
-              this.lastSpawnPosition
-            );
+            this.joinRoom(this.lastRoomId, this.lastPlayerName, this.lastSpawnPosition);
           }
 
           resolve();
         };
 
-        this.ws.onmessage = (event) => {
+        this.ws.onmessage = event => {
           try {
             const message: ServerMessage = JSON.parse(event.data);
             this.handleMessage(message);
           } catch (error) {
-            console.error("Failed to parse message:", error);
+            console.error('Failed to parse message:', error);
           }
         };
 
         this.ws.onclose = () => {
-          console.log("Disconnected from server");
+          console.log('Disconnected from server');
           useGameStore.getState().setConnected(false);
           this.scheduleReconnect();
         };
 
-        this.ws.onerror = (error) => {
-          console.error("WebSocket error:", error);
+        this.ws.onerror = error => {
+          console.error('WebSocket error:', error);
           reject(error);
         };
       } catch (error) {
@@ -103,10 +97,7 @@ export class NetworkManager {
 
     // Exponential backoff for next attempt
     this.reconnectAttempts += 1;
-    this.reconnectDelay = Math.min(
-      this.reconnectDelay * 2,
-      this.maxReconnectDelay
-    );
+    this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
   }
 
   private handleMessage(message: ServerMessage): void {
@@ -146,10 +137,7 @@ export class NetworkManager {
         try {
           handler(message.data, message.senderId);
         } catch (error) {
-          console.error(
-            `Error in script message handler for channel ${message.channel}:`,
-            error
-          );
+          console.error(`Error in script message handler for channel ${message.channel}:`, error);
         }
       }
     }
@@ -159,18 +147,14 @@ export class NetworkManager {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     } else {
-      console.warn("Cannot send message - WebSocket not open:", {
+      console.warn('Cannot send message - WebSocket not open:', {
         readyState: this.ws?.readyState,
         message: message.type,
       });
     }
   }
 
-  joinRoom(
-    roomId: string | undefined,
-    playerName: string,
-    spawnPosition?: Vector3
-  ): void {
+  joinRoom(roomId: string | undefined, playerName: string, spawnPosition?: Vector3): void {
     this.lastRoomId = roomId;
     this.lastPlayerName = playerName;
     if (spawnPosition) {
@@ -210,20 +194,14 @@ export class NetworkManager {
     this.send(message);
   }
 
-  onScriptMessage(
-    channel: string,
-    handler: (data: any, senderId?: string) => void
-  ): void {
+  onScriptMessage(channel: string, handler: (data: any, senderId?: string) => void): void {
     if (!this.scriptMessageHandlers.has(channel)) {
       this.scriptMessageHandlers.set(channel, []);
     }
     this.scriptMessageHandlers.get(channel)!.push(handler);
   }
 
-  offScriptMessage(
-    channel: string,
-    handler: (data: any, senderId?: string) => void
-  ): void {
+  offScriptMessage(channel: string, handler: (data: any, senderId?: string) => void): void {
     const handlers = this.scriptMessageHandlers.get(channel);
     if (handlers) {
       const index = handlers.indexOf(handler);

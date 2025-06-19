@@ -1,5 +1,5 @@
-import CANNON from "cannon";
-import { Vector3, PhysicsBody, Hit } from "@motionjs/common";
+import CANNON from 'cannon';
+import { Vector3, PhysicsBody, Hit } from '@motionjs/common';
 
 export class PhysicsWorld {
   private world: CANNON.World;
@@ -47,9 +47,7 @@ export class PhysicsWorld {
     });
 
     // Add cylinder for main body
-    const cylinderShape = new CANNON.Box(
-      new CANNON.Vec3(radius, halfHeight, radius)
-    );
+    const cylinderShape = new CANNON.Box(new CANNON.Vec3(radius, halfHeight, radius));
     body.addShape(cylinderShape, new CANNON.Vec3(0, 0, 0));
 
     // Add spheres for top and bottom caps
@@ -58,7 +56,7 @@ export class PhysicsWorld {
     body.addShape(sphereShape, new CANNON.Vec3(0, -halfHeight, 0)); // Bottom cap
 
     // Set low friction material
-    const playerMaterial = new CANNON.Material("player");
+    const playerMaterial = new CANNON.Material('player');
     playerMaterial.friction = 0.1;
     playerMaterial.restitution = 0.1;
     body.material = playerMaterial;
@@ -148,11 +146,7 @@ export class PhysicsWorld {
     };
   }
 
-  raycast(
-    origin: Vector3,
-    direction: Vector3,
-    maxDistance: number = 100
-  ): Hit | null {
+  raycast(origin: Vector3, direction: Vector3, maxDistance: number = 100): Hit | null {
     const from = new CANNON.Vec3(origin.x, origin.y, origin.z);
     const to = new CANNON.Vec3(
       origin.x + direction.x * maxDistance,

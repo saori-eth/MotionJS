@@ -1,5 +1,5 @@
-import { WebSocket } from "ws";
-import { nanoid } from "nanoid";
+import { WebSocket } from 'ws';
+import { nanoid } from 'nanoid';
 import {
   ClientMessage,
   ServerMessage,
@@ -7,9 +7,9 @@ import {
   ErrorMessage,
   ScriptMessage,
   Vector3,
-} from "@motionjs/common";
-import { RoomManager } from "../rooms/RoomManager.js";
-import { EventEmitter } from "events";
+} from '@motionjs/common';
+import { RoomManager } from '../rooms/RoomManager.js';
+import { EventEmitter } from 'events';
 
 export class ClientConnection extends EventEmitter {
   public readonly id: string;
@@ -17,7 +17,10 @@ export class ClientConnection extends EventEmitter {
   private roomId: string | null = null;
   private pingInterval: NodeJS.Timeout | null = null;
 
-  constructor(private ws: WebSocket, private roomManager: RoomManager) {
+  constructor(
+    private ws: WebSocket,
+    private roomManager: RoomManager
+  ) {
     super();
     this.id = nanoid();
 
@@ -26,22 +29,22 @@ export class ClientConnection extends EventEmitter {
   }
 
   private setupEventHandlers(): void {
-    this.ws.on("message", (data) => {
+    this.ws.on('message', data => {
       try {
         const message: ClientMessage = JSON.parse(data.toString());
         this.handleMessage(message);
       } catch (error) {
-        console.error("Failed to parse message:", error);
-        this.sendError("INVALID_MESSAGE", "Invalid message format");
+        console.error('Failed to parse message:', error);
+        this.sendError('INVALID_MESSAGE', 'Invalid message format');
       }
     });
 
-    this.ws.on("close", () => {
+    this.ws.on('close', () => {
       this.handleDisconnect();
     });
 
-    this.ws.on("error", (error) => {
-      console.error("WebSocket error:", error);
+    this.ws.on('error', error => {
+      console.error('WebSocket error:', error);
       this.handleDisconnect();
     });
   }
@@ -57,11 +60,7 @@ export class ClientConnection extends EventEmitter {
   private handleMessage(message: ClientMessage): void {
     switch (message.type) {
       case MessageType.JoinRoom:
-        this.handleJoinRoom(
-          message.roomId || null,
-          message.playerName,
-          message.spawnPosition
-        );
+        this.handleJoinRoom(message.roomId || null, message.playerName, message.spawnPosition);
         break;
 
       case MessageType.LeaveRoom:
@@ -108,7 +107,7 @@ export class ClientConnection extends EventEmitter {
       this.roomId = room.id;
       this.playerId = result.playerId!;
     } else {
-      this.sendError("ROOM_FULL", result.error || "Failed to join room");
+      this.sendError('ROOM_FULL', result.error || 'Failed to join room');
     }
   }
 
@@ -130,7 +129,7 @@ export class ClientConnection extends EventEmitter {
       this.pingInterval = null;
     }
 
-    this.emit("disconnect");
+    this.emit('disconnect');
   }
 
   send(message: ServerMessage): void {

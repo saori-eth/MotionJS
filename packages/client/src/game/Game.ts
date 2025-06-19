@@ -1,12 +1,12 @@
-import { World } from "@motionjs/common";
-import { Renderer } from "../rendering/Renderer";
-import { NetworkManager } from "../networking/NetworkManager";
-import { PlayerController } from "./PlayerController";
-import { PlayerAvatar } from "./PlayerAvatar";
-import { CameraController } from "./CameraController";
-import { ClientPrediction } from "./ClientPrediction";
-import { ScriptLoader } from "../scripting/ScriptLoader";
-import { useGameStore } from "../store/gameStore";
+import { World } from '@motionjs/common';
+import { Renderer } from '../rendering/Renderer';
+import { NetworkManager } from '../networking/NetworkManager';
+import { PlayerController } from './PlayerController';
+import { PlayerAvatar } from './PlayerAvatar';
+import { CameraController } from './CameraController';
+import { ClientPrediction } from './ClientPrediction';
+import { ScriptLoader } from '../scripting/ScriptLoader';
+import { useGameStore } from '../store/gameStore';
 
 export class Game {
   private renderer!: Renderer;
@@ -24,13 +24,13 @@ export class Game {
 
   constructor(private container: HTMLElement) {
     this.world = new World();
-    this.networkManager = new NetworkManager("ws://localhost:8080");
+    this.networkManager = new NetworkManager('ws://localhost:8080');
     this.playerController = new PlayerController();
     this.prediction = new ClientPrediction();
   }
 
   private setupStoreSubscriptions(): void {
-    useGameStore.subscribe((state) => {
+    useGameStore.subscribe(state => {
       if (state.latestSnapshot) {
         this.updateFromSnapshot();
       }
@@ -47,11 +47,11 @@ export class Game {
       this.setupStoreSubscriptions();
 
       await this.networkManager.connect();
-      this.networkManager.joinRoom(roomId, "Player");
+      this.networkManager.joinRoom(roomId, 'Player');
       this.start();
       await this.scriptLoader.loadScripts();
     } catch (error) {
-      console.error("Failed to join room:", error);
+      console.error('Failed to join room:', error);
     }
   }
 
@@ -77,10 +77,7 @@ export class Game {
     if (store.playerId && this.localAvatar) {
       const input = this.playerController.getInput(deltaTime);
 
-      if (
-        this.playerController.isMoving() &&
-        this.networkManager.isConnected()
-      ) {
+      if (this.playerController.isMoving() && this.networkManager.isConnected()) {
         this.networkManager.sendInput(input);
         this.prediction.addInput(input);
       }
@@ -170,33 +167,29 @@ export class Game {
    */
   async reloadScripts(): Promise<void> {
     if (!this.scriptLoader) {
-      console.warn("ScriptLoader not initialized, cannot reload scripts");
+      console.warn('ScriptLoader not initialized, cannot reload scripts');
       return;
     }
 
     try {
-      console.log("🔄 Game: Initiating script reload...");
+      console.log('🔄 Game: Initiating script reload...');
 
       // Store current game state to detect if anything gets corrupted
       const wasRendering = !!this.animationId;
 
       await this.scriptLoader.reloadScripts();
-      console.log("✅ Game: Script reload completed");
+      console.log('✅ Game: Script reload completed');
 
       // Verify core systems are still working after reload
       if (wasRendering && !this.animationId) {
-        console.warn(
-          "⚠️ Animation loop stopped after script reload, restarting..."
-        );
+        console.warn('⚠️ Animation loop stopped after script reload, restarting...');
         this.start();
       }
     } catch (error) {
-      console.error("❌ Game: Failed to reload scripts:", error);
+      console.error('❌ Game: Failed to reload scripts:', error);
 
       // Don't let script errors break the game - continue running
-      console.log(
-        "🔧 Game: Continuing normal operation despite script reload failure"
-      );
+      console.log('🔧 Game: Continuing normal operation despite script reload failure');
     }
   }
 

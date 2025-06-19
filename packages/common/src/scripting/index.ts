@@ -5,4 +5,4 @@ export type {
   DatabaseAPI,
   PrimitiveOptions,
   SpawnedPrimitive,
-} from "./ScriptContext.js";
+} from './ScriptContext.js';

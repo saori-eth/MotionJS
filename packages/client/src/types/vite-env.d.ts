@@ -7,5 +7,5 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
-  readonly hot?: import("vite/types/hot").ViteHotContext;
+  readonly hot?: import('vite/types/hot').ViteHotContext;
 }
