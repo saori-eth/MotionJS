@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@motionjs/common": "workspace:*",
+    "@pixiv/three-vrm": "^3.4.1",
     "cannon-es": "^0.20.0",
+    "vrm-mixamo-retarget": "^1.0.3",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

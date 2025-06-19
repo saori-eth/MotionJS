@@ -1,69 +1,37 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import { Player } from '@motionjs/common';
+import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { AnimationManager } from './AnimationManager';
+import { retargetAnimationFromUrl } from 'vrm-mixamo-retarget';
+
+// We need to instantiate the loader only once.
+const loader = new GLTFLoader();
+loader.register((parser: any) => new VRMLoaderPlugin(parser));
 
 export class PlayerAvatar {
-  public mesh: THREE.Mesh;
+  public vrm: VRM;
+  private animationManager: AnimationManager;
   private targetPosition: THREE.Vector3;
   private currentPosition: THREE.Vector3;
 
-  constructor(player: Player, isLocal: boolean = false) {
-    // Create capsule geometry
-    const radius = 0.4;
-    const height = 1.8;
-    const capSegments = 16;
-    const radialSegments = 16;
+  private constructor(
+    player: Player,
+    isLocal: boolean,
+    vrm: VRM,
+    animationManager: AnimationManager
+  ) {
+    this.vrm = vrm;
+    this.vrm.scene.rotation.y = Math.PI; // Model may be facing backwards
 
-    // Create cylinder for main body
-    const cylinderGeometry = new THREE.CylinderGeometry(radius, radius, height, radialSegments);
-
-    // Create spheres for caps
-    const sphereGeometry = new THREE.SphereGeometry(radius, capSegments, capSegments / 2);
-
-    // Create a group to hold the capsule parts
-    const capsuleGroup = new THREE.Group();
-
-    const material = new THREE.MeshStandardMaterial({
-      color: isLocal ? 0x0066cc : 0xcc6600,
-      roughness: 0.7,
-      metalness: 0.3,
+    // Ensure all parts of the VRM avatar cast and receive shadows
+    this.vrm.scene.traverse(obj => {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
     });
 
-    // Add cylinder
-    const cylinderMesh = new THREE.Mesh(cylinderGeometry, material);
-    capsuleGroup.add(cylinderMesh);
-
-    // Add top hemisphere
-    const topCapMesh = new THREE.Mesh(sphereGeometry, material);
-    topCapMesh.position.y = height / 2;
-    capsuleGroup.add(topCapMesh);
-
-    // Add bottom hemisphere
-    const bottomCapMesh = new THREE.Mesh(sphereGeometry, material);
-    bottomCapMesh.position.y = -height / 2;
-    capsuleGroup.add(bottomCapMesh);
-
-    // Merge geometries for better performance
-    const mergedGeometry = new THREE.BufferGeometry();
-    capsuleGroup.updateMatrixWorld();
-
-    const geometries: THREE.BufferGeometry[] = [];
-    capsuleGroup.traverse(child => {
-      if (child instanceof THREE.Mesh) {
-        const clonedGeometry = child.geometry.clone();
-        clonedGeometry.applyMatrix4(child.matrixWorld);
-        geometries.push(clonedGeometry);
-      }
-    });
-
-    if (geometries.length > 0) {
-      const mergedBufferGeometry = mergeGeometries(geometries);
-      mergedGeometry.copy(mergedBufferGeometry);
-    }
-
-    this.mesh = new THREE.Mesh(mergedGeometry, material);
-    this.mesh.castShadow = true;
-    this.mesh.receiveShadow = true;
+    this.animationManager = animationManager;
+    this.animationManager.play('idle');
 
     this.targetPosition = new THREE.Vector3(
       player.transform.position.x,
@@ -72,35 +40,70 @@ export class PlayerAvatar {
     );
 
     this.currentPosition = this.targetPosition.clone();
-    this.mesh.position.copy(this.currentPosition);
+    this.vrm.scene.position.copy(this.currentPosition);
+  }
+
+  public static async create(player: Player, isLocal: boolean): Promise<PlayerAvatar> {
+    const gltf = await loader.loadAsync('/avatar.vrm');
+    const vrm = gltf.userData.vrm as VRM;
+
+    const animationManager = new AnimationManager(vrm);
+    await animationManager.loadAndAddAnimation('idle', '/idle.fbx', vrm);
+    await animationManager.loadAndAddAnimation('walk', '/walk.fbx', vrm);
+
+    return new PlayerAvatar(player, isLocal, vrm, animationManager);
   }
 
   updateFromPlayer(player: Player, deltaTime: number): void {
     this.targetPosition.set(
       player.transform.position.x,
-      player.transform.position.y, // No offset needed, capsule center aligns with physics body
+      player.transform.position.y,
       player.transform.position.z
     );
 
-    this.currentPosition.lerp(this.targetPosition, Math.min(deltaTime * 10, 1));
-    this.mesh.position.copy(this.currentPosition);
+    const distance = this.currentPosition.distanceTo(this.targetPosition);
 
-    this.mesh.quaternion.set(
+    // Play walk animation if moving, otherwise idle
+    if (distance > 0.01) {
+      this.animationManager.play('walk');
+    } else {
+      this.animationManager.play('idle');
+    }
+
+    this.currentPosition.lerp(this.targetPosition, Math.min(deltaTime * 10, 1));
+    this.vrm.scene.position.copy(this.currentPosition);
+
+    this.vrm.scene.quaternion.set(
       player.transform.rotation.x,
       player.transform.rotation.y,
       player.transform.rotation.z,
       player.transform.rotation.w
     );
+
+    this.animationManager.update(deltaTime);
+    this.vrm.update(deltaTime);
   }
 
   setPosition(x: number, y: number, z: number): void {
     this.targetPosition.set(x, y, z);
     this.currentPosition.copy(this.targetPosition);
-    this.mesh.position.copy(this.currentPosition);
+    this.vrm.scene.position.copy(this.currentPosition);
   }
 
   dispose(): void {
-    this.mesh.geometry.dispose();
-    (this.mesh.material as THREE.Material).dispose();
+    // VRM doesn't have a dispose method, but we can clean up the scene
+    this.vrm.scene.traverse((obj) => {
+      if ((obj as any).geometry) {
+        (obj as any).geometry.dispose();
+      }
+      if ((obj as any).material) {
+        const material = (obj as any).material;
+        if (Array.isArray(material)) {
+          material.forEach((mat) => mat.dispose());
+        } else {
+          material.dispose();
+        }
+      }
+    });
   }
 }

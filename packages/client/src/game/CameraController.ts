@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 export class CameraController {
-  private offset: THREE.Vector3 = new THREE.Vector3(0, 8, 12);
+  private offset: THREE.Vector3 = new THREE.Vector3(0, 4, 6);
   private lookAtOffset: THREE.Vector3 = new THREE.Vector3(0, 1, 0);
   private smoothness: number = 0.1;
 

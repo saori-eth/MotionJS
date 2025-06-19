@@ -35,7 +35,9 @@ export class PlayerController {
     if (this.keys.has('d')) this.movement.x += 1;
 
     // Normalize horizontal movement only
-    const horizontalLength = Math.sqrt(this.movement.x * this.movement.x + this.movement.z * this.movement.z);
+    const horizontalLength = Math.sqrt(
+      this.movement.x * this.movement.x + this.movement.z * this.movement.z
+    );
     if (horizontalLength > 0) {
       this.movement.x /= horizontalLength;
       this.movement.z /= horizontalLength;

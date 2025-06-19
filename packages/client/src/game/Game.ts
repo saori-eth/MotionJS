@@ -21,6 +21,8 @@ export class Game {
   private localAvatar: PlayerAvatar | null = null;
   private animationId: number | null = null;
   private lastTime: number = 0;
+  private avatarsBeingCreated: Set<string> = new Set();
+  private isUpdatingFromSnapshot: boolean = false;
 
   constructor(private container: HTMLElement) {
     this.world = new World();
@@ -31,7 +33,7 @@ export class Game {
 
   private setupStoreSubscriptions(): void {
     useGameStore.subscribe(state => {
-      if (state.latestSnapshot) {
+      if (state.latestSnapshot && !this.isUpdatingFromSnapshot) {
         this.updateFromSnapshot();
       }
     });
@@ -84,10 +86,10 @@ export class Game {
 
       // Don't predict position for now - let server update handle it
 
-      this.cameraController.follow(this.localAvatar.mesh, deltaTime);
+      this.cameraController.follow(this.localAvatar.vrm.scene, deltaTime);
 
       // Update spawn position tracking for reconnection
-      const pos = this.localAvatar.mesh.position;
+      const pos = this.localAvatar.vrm.scene.position;
       this.networkManager.setSpawnPosition({ x: pos.x, y: pos.y, z: pos.z });
     }
 
@@ -105,42 +107,72 @@ export class Game {
     }
   }
 
-  private updateFromSnapshot(): void {
-    const store = useGameStore.getState();
-    const snapshot = store.latestSnapshot;
-    if (!snapshot) return;
+  private async updateFromSnapshot(): Promise<void> {
+    // Prevent concurrent updates
+    if (this.isUpdatingFromSnapshot) return;
+    this.isUpdatingFromSnapshot = true;
 
-    for (const [playerId, player] of store.players) {
-      if (!this.avatars.has(playerId)) {
-        const isLocal = playerId === store.playerId;
-        const avatar = new PlayerAvatar(player, isLocal);
-        this.avatars.set(playerId, avatar);
-        this.renderer.scene.add(avatar.mesh);
+    try {
+      const store = useGameStore.getState();
+      const snapshot = store.latestSnapshot;
+      if (!snapshot) return;
 
-        if (isLocal) {
-          this.localAvatar = avatar;
-          this.scriptLoader.setLocalPlayerId(playerId);
+      // Create avatars for new players
+      for (const [playerId, player] of store.players) {
+        // Check both if avatar exists and if it's being created
+        if (!this.avatars.has(playerId) && !this.avatarsBeingCreated.has(playerId)) {
+          // Mark this avatar as being created to prevent duplicates
+          this.avatarsBeingCreated.add(playerId);
+          
+          const isLocal = playerId === store.playerId;
+          
+          try {
+            const avatar = await PlayerAvatar.create(player, isLocal);
+            
+            // Double-check avatar wasn't created while we were waiting
+            if (!this.avatars.has(playerId)) {
+              this.avatars.set(playerId, avatar);
+              this.renderer.scene.add(avatar.vrm.scene);
+
+              if (isLocal) {
+                this.localAvatar = avatar;
+                this.scriptLoader.setLocalPlayerId(playerId);
+              }
+            } else {
+              // Avatar was created by another call, dispose this duplicate
+              avatar.dispose();
+            }
+          } catch (error) {
+            console.error(`Failed to create avatar for player ${playerId}:`, error);
+          } finally {
+            // Remove from being created set
+            this.avatarsBeingCreated.delete(playerId);
+          }
         }
       }
-    }
 
-    for (const [playerId, avatar] of this.avatars) {
-      if (!store.players.has(playerId)) {
-        this.renderer.scene.remove(avatar.mesh);
-        avatar.dispose();
-        this.avatars.delete(playerId);
+      // Remove avatars for players who left
+      for (const [playerId, avatar] of this.avatars) {
+        if (!store.players.has(playerId)) {
+          this.renderer.scene.remove(avatar.vrm.scene);
+          avatar.dispose();
+          this.avatars.delete(playerId);
 
-        if (playerId === store.playerId) {
-          this.localAvatar = null;
+          if (playerId === store.playerId) {
+            this.localAvatar = null;
+          }
         }
       }
-    }
 
-    if (store.playerId && this.localAvatar) {
-      const serverPlayer = store.players.get(store.playerId);
-      if (serverPlayer) {
-        this.prediction.reconcile(serverPlayer, snapshot.frameId);
+      // Reconcile local player prediction
+      if (store.playerId && this.localAvatar) {
+        const serverPlayer = store.players.get(store.playerId);
+        if (serverPlayer) {
+          this.prediction.reconcile(serverPlayer, snapshot.frameId);
+        }
       }
+    } finally {
+      this.isUpdatingFromSnapshot = false;
     }
   }
 
@@ -158,6 +190,9 @@ export class Game {
     for (const avatar of this.avatars.values()) {
       avatar.dispose();
     }
+
+    this.avatarsBeingCreated.clear();
+    this.isUpdatingFromSnapshot = false;
 
     useGameStore.getState().reset();
   }

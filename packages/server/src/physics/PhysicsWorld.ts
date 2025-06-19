@@ -96,7 +96,7 @@ export class PhysicsWorld {
     if (groundDistance >= -0.1 && groundDistance <= 0.5) {
       body.velocity.y *= 0.9; // Extra damping near hover height
     }
-    
+
     // Apply horizontal damping to prevent infinite sliding
     const horizontalDamping = 0.9; // Higher value = less damping, lower value = more damping
     body.velocity.x *= horizontalDamping;
@@ -109,16 +109,16 @@ export class PhysicsWorld {
 
     // Direct velocity control for responsive movement
     const speed = 10;
-    
+
     // Set target velocity based on input
     const targetVelX = movement.x * speed;
     const targetVelZ = movement.z * speed;
-    
+
     // Apply acceleration towards target velocity (more responsive than direct setting)
     const acceleration = 50; // How quickly to reach target velocity
     const deltaVelX = targetVelX - body.velocity.x;
     const deltaVelZ = targetVelZ - body.velocity.z;
-    
+
     body.velocity.x += deltaVelX * acceleration * (1 / 60);
     body.velocity.z += deltaVelZ * acceleration * (1 / 60);
 
