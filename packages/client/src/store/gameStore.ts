@@ -8,7 +8,7 @@ interface GameState {
   players: Map<string, Player>;
   latestSnapshot: Snapshot | null;
   inputSequence: number;
-  
+
   setConnected: (connected: boolean) => void;
   setRoomInfo: (roomId: string, playerId: string) => void;
   updateSnapshot: (snapshot: Snapshot) => void;
@@ -23,31 +23,33 @@ export const useGameStore = create<GameState>((set, get) => ({
   players: new Map(),
   latestSnapshot: null,
   inputSequence: 0,
-  
-  setConnected: (connected) => set({ connected }),
-  
+
+  setConnected: connected => set({ connected }),
+
   setRoomInfo: (roomId, playerId) => set({ roomId, playerId }),
-  
-  updateSnapshot: (snapshot) => set((state) => {
-    const players = new Map<string, Player>();
-    Object.entries(snapshot.players).forEach(([id, player]) => {
-      players.set(id, player);
-    });
-    return { latestSnapshot: snapshot, players };
-  }),
-  
+
+  updateSnapshot: snapshot =>
+    set(state => {
+      const players = new Map<string, Player>();
+      Object.entries(snapshot.players).forEach(([id, player]) => {
+        players.set(id, player);
+      });
+      return { latestSnapshot: snapshot, players };
+    }),
+
   incrementInputSequence: () => {
     const sequence = get().inputSequence + 1;
     set({ inputSequence: sequence });
     return sequence;
   },
-  
-  reset: () => set({
-    connected: false,
-    roomId: null,
-    playerId: null,
-    players: new Map(),
-    latestSnapshot: null,
-    inputSequence: 0,
-  })
+
+  reset: () =>
+    set({
+      connected: false,
+      roomId: null,
+      playerId: null,
+      players: new Map(),
+      latestSnapshot: null,
+      inputSequence: 0,
+    }),
 }));

@@ -5,9 +5,9 @@ import {
   Vector3,
   PrimitiveOptions,
   SpawnedPrimitive,
-} from "@motionjs/common";
-import { Renderer } from "../rendering/Renderer";
-import * as THREE from "three";
+} from '@motionjs/common';
+import { Renderer } from '../rendering/Renderer';
+import * as THREE from 'three';
 
 export class ScriptLoader {
   private scripts: Map<string, ScriptFunction> = new Map();
@@ -18,8 +18,13 @@ export class ScriptLoader {
   private primitiveIdCounter: number = 0;
   private messageHandlers: Map<string, ((data: any, senderId?: string) => void)[]> = new Map();
   private networkManager: any = null;
+  private isReloading: boolean = false;
+  private lastScriptVersion: number = 0;
 
-  constructor(private world: World, private renderer: Renderer) {
+  constructor(
+    private world: World,
+    private renderer: Renderer
+  ) {
     this.context = this.createContext();
   }
 
@@ -55,10 +60,7 @@ export class ScriptLoader {
           raycaster.far = options.maxDistance;
         }
 
-        const intersects = raycaster.intersectObjects(
-          this.renderer.scene.children,
-          true
-        );
+        const intersects = raycaster.intersectObjects(this.renderer.scene.children, true);
 
         if (intersects.length > 0) {
           const hit = intersects[0];
@@ -98,7 +100,7 @@ export class ScriptLoader {
 
       spawnPrimitive: (options: PrimitiveOptions): SpawnedPrimitive => {
         const id = `primitive_${this.primitiveIdCounter++}`;
-        
+
         // Create geometry based on type
         let geometry: THREE.BufferGeometry;
         switch (options.type) {
@@ -120,6 +122,9 @@ export class ScriptLoader {
           case 'plane':
             geometry = new THREE.PlaneGeometry(1, 1);
             break;
+          default:
+            geometry = new THREE.BoxGeometry(1, 1, 1); // Default to box
+            break;
         }
 
         // Create material
@@ -130,7 +135,7 @@ export class ScriptLoader {
 
         // Create mesh
         const mesh = new THREE.Mesh(geometry, material);
-        
+
         // Set initial transform
         if (options.position) {
           mesh.position.set(options.position.x, options.position.y, options.position.z);
@@ -181,10 +186,12 @@ export class ScriptLoader {
           this.messageHandlers.set(channel, []);
         }
         this.messageHandlers.get(channel)!.push(callback);
-        
+
         // Register with network manager if available
         if (this.networkManager) {
           this.networkManager.onScriptMessage(channel, callback);
+        } else {
+          console.warn(`   ⚠️ NetworkManager not available for channel "${channel}"`);
         }
       },
     };
@@ -192,32 +199,21 @@ export class ScriptLoader {
 
   async loadScripts(): Promise<void> {
     try {
-      // Import all scripts from the scripts directory
-      // @ts-ignore - Vite import.meta.glob
-      const scriptModules = import.meta.glob("../../../../scripts/*.ts", {
-        eager: false,
-      });
+      // Dynamically import only the entry script (index.ts) from the scripts directory
+      const module: any = await import(/* @vite-ignore */ '../../../../scripts/index.ts');
 
-      console.log("Found script modules:", Object.keys(scriptModules));
+      if (module.default && typeof module.default === 'function') {
+        const scriptName = 'index';
+        this.scripts.set(scriptName, module.default);
+        console.log(`Loaded client script: ${scriptName}`);
 
-      for (const [path, importFn] of Object.entries(scriptModules)) {
-        try {
-          const module = (await importFn()) as any;
-          if (module.default && typeof module.default === "function") {
-            const scriptName =
-              path.split("/").pop()?.replace(/\.ts$/, "") || "";
-            this.scripts.set(scriptName, module.default);
-            console.log(`Loaded client script: ${scriptName}`);
-
-            // Execute the script immediately
-            await module.default(this.context);
-          }
-        } catch (error) {
-          console.error(`Failed to load script ${path}:`, error);
-        }
+        // Execute the script immediately
+        await module.default(this.context);
+      } else {
+        console.warn('scripts/index.ts does not have a default export function to execute');
       }
     } catch (error) {
-      console.error("Failed to load scripts:", error);
+      console.error('Failed to load scripts/index.ts:', error);
     }
   }
 
@@ -230,9 +226,135 @@ export class ScriptLoader {
       try {
         callback(deltaTime);
       } catch (error) {
-        console.error("Error in script update callback:", error);
+        console.error('Error in script update callback:', error);
       }
     }
+  }
+
+  /**
+   * Cleanly dispose only script-created objects while preserving core game state
+   */
+  private disposeScriptState(): void {
+    console.log('Disposing script state...');
+
+    // Clean up spawned primitives
+    for (const [id, mesh] of this.spawnedPrimitives) {
+      this.renderer.scene.remove(mesh);
+      if (mesh.geometry) mesh.geometry.dispose();
+      if (mesh.material) {
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach(m => m.dispose());
+        } else {
+          mesh.material.dispose();
+        }
+      }
+    }
+    this.spawnedPrimitives.clear();
+
+    // Clear update callbacks
+    console.log(`🧹 Clearing ${this.updateCallbacks.length} update callbacks`);
+    this.updateCallbacks = [];
+
+    // Clear scripts
+    this.scripts.clear();
+
+    // Carefully unregister message handlers but preserve network manager
+    if (this.networkManager) {
+      console.log(`🧹 Unregistering message handlers for ${this.messageHandlers.size} channels`);
+      try {
+        for (const [channel, handlers] of this.messageHandlers) {
+          console.log(`   📢 Channel "${channel}": ${handlers.length} handlers`);
+          for (const handler of handlers) {
+            try {
+              this.networkManager.offScriptMessage(channel, handler);
+            } catch (error) {
+              console.warn(`Failed to unregister handler for channel ${channel}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error during message handler cleanup:', error);
+      }
+    }
+    this.messageHandlers.clear();
+
+    // Reset primitive counter
+    this.primitiveIdCounter = 0;
+
+    console.log('✅ Script state disposal complete');
+  }
+
+  /**
+   * Reload scripts with cache busting while preserving game state
+   */
+  async reloadScripts(): Promise<void> {
+    if (this.isReloading) {
+      console.log('Script reload already in progress, skipping...');
+      return;
+    }
+
+    this.isReloading = true;
+    console.log('🔄 Reloading scripts...');
+
+    try {
+      // Dispose script-specific state
+      this.disposeScriptState();
+
+      // Small delay to let handlers and network stabilize
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Increment version for cache busting
+      this.lastScriptVersion = Date.now();
+
+      // Dynamically import with cache busting
+      const module: any = await import(
+        /* @vite-ignore */ `../../../../scripts/index.ts?t=${this.lastScriptVersion}`
+      );
+
+      if (module.default && typeof module.default === 'function') {
+        const scriptName = 'index';
+        this.scripts.set(scriptName, module.default);
+        console.log(`✅ Reloaded client script: ${scriptName}`);
+
+        // Execute the script immediately with comprehensive error handling
+        try {
+          await module.default(this.context);
+          console.log('🎮 Scripts reloaded successfully!');
+
+          // Dispatch custom event for UI feedback
+          window.dispatchEvent(new CustomEvent('scriptsReloaded'));
+        } catch (scriptError) {
+          console.error('❌ Error executing reloaded script:', scriptError);
+
+          // Don't throw here - we want to complete the reload process
+          window.dispatchEvent(
+            new CustomEvent('scriptsReloadError', {
+              detail: { error: scriptError },
+            })
+          );
+        }
+      } else {
+        console.warn('scripts/index.ts does not have a default export function to execute');
+      }
+    } catch (error) {
+      console.error('❌ Failed to reload scripts:', error);
+
+      // Dispatch error event
+      window.dispatchEvent(
+        new CustomEvent('scriptsReloadError', {
+          detail: { error },
+        })
+      );
+    } finally {
+      this.isReloading = false;
+    }
+  }
+
+  /**
+   * Check if scripts are currently reloading
+   */
+  isReloadingScripts(): boolean {
+    return this.isReloading;
   }
 
   dispose(): void {
@@ -250,7 +372,7 @@ export class ScriptLoader {
     }
     this.spawnedPrimitives.clear();
     this.updateCallbacks = [];
-    
+
     // Unregister message handlers
     if (this.networkManager) {
       for (const [channel, handlers] of this.messageHandlers) {

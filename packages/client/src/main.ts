@@ -1,4 +1,5 @@
 import { Game } from './game/Game';
+import { scriptHMR } from './utils/ScriptHMR';
 
 const appElement = document.getElementById('app');
 if (!appElement) throw new Error('App element not found');
@@ -14,7 +15,10 @@ lobby.innerHTML = `
 
 appElement.appendChild(lobby);
 
-document.getElementById('play-btn')?.addEventListener('click', () => {
+document.getElementById('play-btn')?.addEventListener('click', async () => {
   lobby.remove();
-  game.joinRoom();
+  await game.joinRoom();
+
+  // Set up HMR after game is initialized
+  scriptHMR.setGame(game);
 });

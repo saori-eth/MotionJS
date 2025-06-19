@@ -1,1 +1,8 @@
-export type { ScriptContext, ScriptFunction, RaycastOptions, DatabaseAPI } from './ScriptContext.js';
+export type {
+  ScriptContext,
+  ScriptFunction,
+  RaycastOptions,
+  DatabaseAPI,
+  PrimitiveOptions,
+  SpawnedPrimitive,
+} from './ScriptContext.js';

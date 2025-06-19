@@ -9,11 +9,12 @@ import {
   PlayerLeftMessage,
   SnapshotMessage,
   ScriptBroadcastMessage,
-} from "@motionjs/common";
-import { PhysicsWorld } from "../physics/PhysicsWorld.js";
-import { ClientConnection } from "../networking/ClientConnection.js";
-import { Database } from "../database/Database.js";
-import { ScriptLoader } from "../scripting/ScriptLoader.js";
+  Vector3,
+} from '@motionjs/common';
+import { PhysicsWorld } from '../physics/PhysicsWorld.js';
+import { ClientConnection } from '../networking/ClientConnection.js';
+import { Database } from '../database/Database.js';
+import { ScriptLoader } from '../scripting/ScriptLoader.js';
 
 export interface RoomConfig {
   maxPlayers: number;
@@ -58,20 +59,25 @@ export class Room {
   addPlayer(
     connectionId: string,
     playerName: string,
-    connection: ClientConnection
+    connection: ClientConnection,
+    spawnPosition?: Vector3
   ): { success: boolean; playerId?: string; error?: string } {
     if (this.players.size >= this.config.maxPlayers) {
-      return { success: false, error: "Room is full" };
+      return { success: false, error: 'Room is full' };
     }
 
     const playerId = this.database.createUser(playerName);
-    this.physics.createPlayerBody(playerId);
+    const body = this.physics.createPlayerBody(playerId);
 
     const player: Player = {
       id: playerId,
       name: playerName,
       transform: {
-        position: { x: 0, y: 2, z: 0 },
+        position: spawnPosition ?? {
+          x: body.position.x,
+          y: body.position.y,
+          z: body.position.z,
+        },
         rotation: { x: 0, y: 0, z: 0, w: 1 },
       },
       velocity: { x: 0, y: 0, z: 0 },
@@ -110,6 +116,12 @@ export class Room {
     // Send immediate snapshot to new player
     this.sendSnapshotToPlayer(playerId);
 
+    if (spawnPosition) {
+      // Teleport physics body to provided position
+      body.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+      body.velocity.set(0, 0, 0);
+    }
+
     return { success: true, playerId };
   }
 
@@ -135,13 +147,8 @@ export class Room {
 
     player.input = input;
 
-    const movement = {
-      x: input.movement.x,
-      y: input.actions.jump ? 1 : 0,
-      z: input.movement.z,
-    };
-
-    this.physics.applyPlayerInput(playerId, movement);
+    // Movement vector already contains jump information in y component
+    this.physics.applyPlayerInput(playerId, input.movement);
   }
 
   private tick(): void {

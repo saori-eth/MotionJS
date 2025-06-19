@@ -1,7 +1,7 @@
-import { Room, RoomConfig } from "./Room.js";
-import { Database } from "../database/Database.js";
-import { ScriptLoader } from "../scripting/ScriptLoader.js";
-import { randomUUID } from "crypto";
+import { Room, RoomConfig } from './Room.js';
+import { Database } from '../database/Database.js';
+import { ScriptLoader } from '../scripting/ScriptLoader.js';
+import { randomUUID } from 'crypto';
 
 export class RoomManager {
   private rooms: Map<string, Room> = new Map();
@@ -17,10 +17,7 @@ export class RoomManager {
     this.scriptLoader = scriptLoader;
   }
 
-  async getOrCreateRoom(
-    roomId: string,
-    config?: Partial<RoomConfig>
-  ): Promise<Room> {
+  async getOrCreateRoom(roomId: string, config?: Partial<RoomConfig>): Promise<Room> {
     let room = this.rooms.get(roomId);
 
     if (!room) {

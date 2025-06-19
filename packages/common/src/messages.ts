@@ -7,7 +7,7 @@ export enum MessageType {
   PlayerInput = 'PLAYER_INPUT',
   Ping = 'PING',
   ScriptMessage = 'SCRIPT_MESSAGE',
-  
+
   // Server -> Client
   RoomJoined = 'ROOM_JOINED',
   RoomLeft = 'ROOM_LEFT',
@@ -16,13 +16,14 @@ export enum MessageType {
   PlayerLeft = 'PLAYER_LEFT',
   Pong = 'PONG',
   Error = 'ERROR',
-  ScriptBroadcast = 'SCRIPT_BROADCAST'
+  ScriptBroadcast = 'SCRIPT_BROADCAST',
 }
 
 export interface JoinRoomMessage {
   type: MessageType.JoinRoom;
   roomId?: string;
   playerName: string;
+  spawnPosition?: Vector3;
 }
 
 export interface LeaveRoomMessage {
@@ -79,4 +80,10 @@ export interface ScriptBroadcastMessage {
 }
 
 export type ClientMessage = JoinRoomMessage | LeaveRoomMessage | PlayerInputMessage | ScriptMessage;
-export type ServerMessage = RoomJoinedMessage | SnapshotMessage | PlayerJoinedMessage | PlayerLeftMessage | ErrorMessage | ScriptBroadcastMessage;
+export type ServerMessage =
+  | RoomJoinedMessage
+  | SnapshotMessage
+  | PlayerJoinedMessage
+  | PlayerLeftMessage
+  | ErrorMessage
+  | ScriptBroadcastMessage;
