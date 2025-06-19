@@ -7,19 +7,6 @@ import {
   AnimationObject,
 } from './helper';
 
-/**
- * 🔥 HOT RELOAD ENABLED! 🔥
- *
- * This script supports hot reloading during development:
- * - Edit this file or helper.ts and see changes instantly
- * - No need to restart the game or return to homescreen
- * - Use Ctrl/Cmd + Shift + R for manual reload
- * - Watch the console and notifications for reload status
- *
- * Note: Script-spawned objects will be cleanly disposed and recreated,
- * but your player position and network connection will be preserved.
- */
-
 export default async function exampleScript(ctx: ScriptContext) {
   console.log(`Example script loaded on ${ctx.isClient ? 'client' : 'server'}`);
 
@@ -89,7 +76,6 @@ export default async function exampleScript(ctx: ScriptContext) {
     if (ctx.sendToServer && !hasRequestedState) {
       try {
         hasRequestedState = true;
-        console.log('🔄 Requesting initial animation state from server...');
         ctx.sendToServer('request-animation-state', {});
 
         // If we don't receive state within 3 seconds, request again (for script reload cases)
@@ -111,7 +97,7 @@ export default async function exampleScript(ctx: ScriptContext) {
     // Example of client-only animation: wireframe cone that spins locally
     const cone = ctx.spawnPrimitive({
       type: 'cone',
-      position: { x: 0, y: 2, z: 2 },
+      position: { x: 0, y: 5, z: 2 },
       color: 0xffff00,
       wireframe: true,
     });

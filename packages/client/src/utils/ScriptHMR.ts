@@ -44,7 +44,6 @@ export class ScriptHMR {
     }
 
     this.isSetup = true;
-    console.log('🔥 Script HMR enabled');
 
     // Listen for our custom script-changed events from the Vite plugin
     import.meta.hot.on('script-changed', async data => {
@@ -70,8 +69,6 @@ export class ScriptHMR {
         await this.performReload('manual keyboard shortcut');
       }
     });
-
-    console.log('💡 Tip: Press Ctrl/Cmd + Shift + R to manually reload scripts');
   }
 
   private showReloadNotification(message: string, isError: boolean = false): void {

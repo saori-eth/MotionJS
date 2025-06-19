@@ -172,13 +172,10 @@ export class Game {
     }
 
     try {
-      console.log('🔄 Game: Initiating script reload...');
-
       // Store current game state to detect if anything gets corrupted
       const wasRendering = !!this.animationId;
 
       await this.scriptLoader.reloadScripts();
-      console.log('✅ Game: Script reload completed');
 
       // Verify core systems are still working after reload
       if (wasRendering && !this.animationId) {

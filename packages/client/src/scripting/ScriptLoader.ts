@@ -182,7 +182,6 @@ export class ScriptLoader {
       },
 
       onMessage: (channel: string, callback: (data: any, senderId?: string) => void) => {
-        console.log(`📢 Registering message handler for channel "${channel}"`);
         if (!this.messageHandlers.has(channel)) {
           this.messageHandlers.set(channel, []);
         }
@@ -190,7 +189,6 @@ export class ScriptLoader {
 
         // Register with network manager if available
         if (this.networkManager) {
-          console.log(`   🌐 Registering with NetworkManager for channel "${channel}"`);
           this.networkManager.onScriptMessage(channel, callback);
         } else {
           console.warn(`   ⚠️ NetworkManager not available for channel "${channel}"`);
