@@ -1,52 +1,75 @@
 import { World } from '@motionjs/common';
 import { Renderer } from '../rendering/Renderer';
 import { NetworkManager } from '../networking/NetworkManager';
-import { PlayerController } from './PlayerController';
-import { PlayerAvatar } from './PlayerAvatar';
-import { CameraController } from './CameraController';
-import { ClientPrediction } from './ClientPrediction';
 import { ScriptLoader } from '../scripting/ScriptLoader';
 import { useGameStore } from '../store/gameStore';
+import { world as ecsWorld, GameWorld } from '../ecs/world';
+import { System } from 'bitecs';
+import {
+  createInputSystem,
+  createClientPredictionSystem,
+  createMovementSystem,
+  createInterpolationSystem,
+  createAnimationSystem,
+  createCameraSystem,
+  createRenderingSystem,
+  createNetworkSystem,
+  createPhysicsSystem
+} from '../ecs/systems';
 
 export class Game {
   private renderer!: Renderer;
   private networkManager: NetworkManager;
-  private playerController: PlayerController;
-  private cameraController!: CameraController;
-  private prediction: ClientPrediction;
   private scriptLoader!: ScriptLoader;
   private world: World;
+  private ecsWorld: GameWorld;
+  private systems: System<[], GameWorld>[] = [];
 
-  private avatars: Map<string, PlayerAvatar> = new Map();
-  private localAvatar: PlayerAvatar | null = null;
   private animationId: number | null = null;
   private lastTime: number = 0;
-  private avatarsBeingCreated: Set<string> = new Set();
-  private isUpdatingFromSnapshot: boolean = false;
 
   constructor(private container: HTMLElement) {
     this.world = new World();
+    this.ecsWorld = ecsWorld;
     this.networkManager = new NetworkManager('ws://localhost:8080');
-    this.playerController = new PlayerController();
-    this.prediction = new ClientPrediction();
   }
 
   private setupStoreSubscriptions(): void {
+    // NetworkSystem now handles snapshot updates
+    /*
     useGameStore.subscribe(state => {
       if (state.latestSnapshot && !this.isUpdatingFromSnapshot) {
         this.updateFromSnapshot();
       }
     });
+    */
+  }
+  
+  private initializeSystems(): void {
+    // Create systems in the correct order
+    this.systems = [
+      createNetworkSystem(this.networkManager, this.renderer),
+      createInputSystem(this.networkManager),
+      createClientPredictionSystem(),
+      createPhysicsSystem(), // Physics must run before movement
+      createMovementSystem(),
+      createInterpolationSystem(),
+      createAnimationSystem(),
+      createCameraSystem(this.renderer.camera),
+      createRenderingSystem()
+    ];
   }
 
   async joinRoom(roomId?: string): Promise<void> {
     try {
       // Initialize renderer and related components when actually joining
       this.renderer = new Renderer(this.container);
-      this.cameraController = new CameraController(this.renderer.camera);
       this.scriptLoader = new ScriptLoader(this.world, this.renderer);
       this.scriptLoader.setNetworkManager(this.networkManager);
       this.setupStoreSubscriptions();
+      
+      // Initialize ECS systems
+      this.initializeSystems();
 
       await this.networkManager.connect();
       this.networkManager.joinRoom(roomId, 'Player');
@@ -74,6 +97,17 @@ export class Game {
   };
 
   private update(deltaTime: number): void {
+    // Update ECS world time
+    this.ecsWorld.time.delta = deltaTime;
+    this.ecsWorld.time.elapsed += deltaTime;
+
+    // Run ECS systems pipeline
+    for (const system of this.systems) {
+      system(this.ecsWorld);
+    }
+
+    // OLD LOGIC - TO BE REMOVED AFTER FULL MIGRATION
+    /*
     const store = useGameStore.getState();
 
     if (store.playerId && this.localAvatar) {
@@ -100,6 +134,7 @@ export class Game {
         avatar.updateFromPlayer(player, deltaTime);
       }
     }
+    */
 
     // Update scripts
     if (this.scriptLoader) {
@@ -107,74 +142,6 @@ export class Game {
     }
   }
 
-  private async updateFromSnapshot(): Promise<void> {
-    // Prevent concurrent updates
-    if (this.isUpdatingFromSnapshot) return;
-    this.isUpdatingFromSnapshot = true;
-
-    try {
-      const store = useGameStore.getState();
-      const snapshot = store.latestSnapshot;
-      if (!snapshot) return;
-
-      // Create avatars for new players
-      for (const [playerId, player] of store.players) {
-        // Check both if avatar exists and if it's being created
-        if (!this.avatars.has(playerId) && !this.avatarsBeingCreated.has(playerId)) {
-          // Mark this avatar as being created to prevent duplicates
-          this.avatarsBeingCreated.add(playerId);
-          
-          const isLocal = playerId === store.playerId;
-          
-          try {
-            const avatar = await PlayerAvatar.create(player, isLocal);
-            
-            // Double-check avatar wasn't created while we were waiting
-            if (!this.avatars.has(playerId)) {
-              this.avatars.set(playerId, avatar);
-              this.renderer.scene.add(avatar.vrm.scene);
-
-              if (isLocal) {
-                this.localAvatar = avatar;
-                this.scriptLoader.setLocalPlayerId(playerId);
-              }
-            } else {
-              // Avatar was created by another call, dispose this duplicate
-              avatar.dispose();
-            }
-          } catch (error) {
-            console.error(`Failed to create avatar for player ${playerId}:`, error);
-          } finally {
-            // Remove from being created set
-            this.avatarsBeingCreated.delete(playerId);
-          }
-        }
-      }
-
-      // Remove avatars for players who left
-      for (const [playerId, avatar] of this.avatars) {
-        if (!store.players.has(playerId)) {
-          this.renderer.scene.remove(avatar.vrm.scene);
-          avatar.dispose();
-          this.avatars.delete(playerId);
-
-          if (playerId === store.playerId) {
-            this.localAvatar = null;
-          }
-        }
-      }
-
-      // Reconcile local player prediction
-      if (store.playerId && this.localAvatar) {
-        const serverPlayer = store.players.get(store.playerId);
-        if (serverPlayer) {
-          this.prediction.reconcile(serverPlayer, snapshot.frameId);
-        }
-      }
-    } finally {
-      this.isUpdatingFromSnapshot = false;
-    }
-  }
 
   dispose(): void {
     if (this.animationId) {
@@ -186,13 +153,6 @@ export class Game {
     if (this.renderer) {
       this.renderer.dispose();
     }
-
-    for (const avatar of this.avatars.values()) {
-      avatar.dispose();
-    }
-
-    this.avatarsBeingCreated.clear();
-    this.isUpdatingFromSnapshot = false;
 
     useGameStore.getState().reset();
   }

@@ -26,6 +26,9 @@ importers:
       '@pixiv/three-vrm':
         specifier: ^3.4.1
         version: 3.4.1(three@0.160.1)
+      bitecs:
+        specifier: ^0.3.40
+        version: 0.3.40
       cannon-es:
         specifier: ^0.20.0
         version: 0.20.0
@@ -713,6 +716,9 @@ packages:
 
   bindings@1.5.0:
     resolution: {integrity: sha512-p2q/t/mhvuOj/UeLlV6566GD/guowlr0hHxClI0W9m7MWYkL1F0hLo+0Aexs9HSPCtR1SXQ0TD3MMKrXZajbiQ==}
+
+  bitecs@0.3.40:
+    resolution: {integrity: sha512-wAylY4pNfX8IeIH5phtwt1lUNtHKrkoSNrArI7Ris2Y4nEQWFIVvXdgAuqprEg9bq8Wolmlj0gVfeG6MFmtI2Q==}
 
   bl@4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
@@ -1552,6 +1558,8 @@ snapshots:
   bindings@1.5.0:
     dependencies:
       file-uri-to-path: 1.0.0
+
+  bitecs@0.3.40: {}
 
   bl@4.1.0:
     dependencies:
