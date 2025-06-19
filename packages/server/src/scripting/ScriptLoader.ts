@@ -20,6 +20,8 @@ export class ScriptLoader {
     World,
     Map<string, ((data: any, senderId?: string) => void)[]>
   > = new Map();
+  private isReloading: boolean = false;
+  private lastScriptVersion: number = 0;
 
   constructor(private roomManager: RoomManager, private database: Database) {}
 
@@ -179,5 +181,87 @@ export class ScriptLoader {
         }
       }
     }
+  }
+
+  /**
+   * Cleanly dispose script state for all rooms while preserving core room state
+   */
+  private disposeScriptState(): void {
+    console.log("Disposing server script state...");
+
+    // Clear update callbacks for all rooms
+    this.roomUpdateCallbacks.clear();
+
+    // Clear message handlers for all rooms
+    this.roomMessageHandlers.clear();
+
+    // Clear scripts
+    this.scripts.clear();
+  }
+
+  /**
+   * Reload scripts with cache busting while preserving room state
+   */
+  async reloadScripts(): Promise<void> {
+    if (this.isReloading) {
+      console.log("Script reload already in progress, skipping...");
+      return;
+    }
+
+    this.isReloading = true;
+    console.log("🔄 Reloading server scripts...");
+
+    try {
+      // Dispose script-specific state
+      this.disposeScriptState();
+
+      // Increment version for cache busting
+      this.lastScriptVersion = Date.now();
+
+      const scriptsDir = join(__dirname, "..", "..", "..", "..", "scripts");
+
+      // Clear module cache for the script files (cache busting handled by query param)
+      const indexFiles = ["index.ts", "index.js"];
+
+      // Reload scripts using the existing loadScripts logic
+      for (const indexFile of indexFiles) {
+        const scriptPath = join(scriptsDir, indexFile);
+        try {
+          await fs.access(scriptPath);
+          const module = await import(
+            `${scriptPath}?t=${this.lastScriptVersion}`
+          );
+
+          if (module.default && typeof module.default === "function") {
+            const scriptName = indexFile.replace(/\.(ts|js)$/, "");
+            this.scripts.set(scriptName, module.default);
+            console.log(`✅ Reloaded server script: ${scriptName}`);
+
+            // Execute script for each existing room immediately
+            const rooms = this.roomManager.getRooms();
+            for (const room of rooms) {
+              const context = this.createContext(room.world);
+              await module.default(context);
+            }
+            break;
+          }
+        } catch (err) {
+          // Continue to next extension if file doesn't exist
+        }
+      }
+
+      console.log("🎮 Server scripts reloaded successfully!");
+    } catch (error) {
+      console.error("❌ Failed to reload server scripts:", error);
+    } finally {
+      this.isReloading = false;
+    }
+  }
+
+  /**
+   * Check if scripts are currently reloading
+   */
+  isReloadingScripts(): boolean {
+    return this.isReloading;
   }
 }

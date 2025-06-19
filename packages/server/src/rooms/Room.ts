@@ -9,6 +9,7 @@ import {
   PlayerLeftMessage,
   SnapshotMessage,
   ScriptBroadcastMessage,
+  Vector3,
 } from "@motionjs/common";
 import { PhysicsWorld } from "../physics/PhysicsWorld.js";
 import { ClientConnection } from "../networking/ClientConnection.js";
@@ -58,20 +59,25 @@ export class Room {
   addPlayer(
     connectionId: string,
     playerName: string,
-    connection: ClientConnection
+    connection: ClientConnection,
+    spawnPosition?: Vector3
   ): { success: boolean; playerId?: string; error?: string } {
     if (this.players.size >= this.config.maxPlayers) {
       return { success: false, error: "Room is full" };
     }
 
     const playerId = this.database.createUser(playerName);
-    this.physics.createPlayerBody(playerId);
+    const body = this.physics.createPlayerBody(playerId);
 
     const player: Player = {
       id: playerId,
       name: playerName,
       transform: {
-        position: { x: 0, y: 2, z: 0 },
+        position: spawnPosition ?? {
+          x: body.position.x,
+          y: body.position.y,
+          z: body.position.z,
+        },
         rotation: { x: 0, y: 0, z: 0, w: 1 },
       },
       velocity: { x: 0, y: 0, z: 0 },
@@ -109,6 +115,12 @@ export class Room {
 
     // Send immediate snapshot to new player
     this.sendSnapshotToPlayer(playerId);
+
+    if (spawnPosition) {
+      // Teleport physics body to provided position
+      body.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+      body.velocity.set(0, 0, 0);
+    }
 
     return { success: true, playerId };
   }
@@ -215,9 +227,19 @@ export class Room {
     return this.players.size < this.config.maxPlayers;
   }
 
-  handleScriptMessage(senderId: string, channel: string, data: any, targetPlayerId?: string): void {
+  handleScriptMessage(
+    senderId: string,
+    channel: string,
+    data: any,
+    targetPlayerId?: string
+  ): void {
     if (this.scriptLoader) {
-      this.scriptLoader.handleIncomingMessage(this.world, channel, data, senderId);
+      this.scriptLoader.handleIncomingMessage(
+        this.world,
+        channel,
+        data,
+        senderId
+      );
     }
 
     const broadcastMessage: ScriptBroadcastMessage = {

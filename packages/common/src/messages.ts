@@ -1,28 +1,29 @@
-import { PlayerInput, Snapshot, Vector3 } from './types.js';
+import { PlayerInput, Snapshot, Vector3 } from "./types.js";
 
 export enum MessageType {
   // Client -> Server
-  JoinRoom = 'JOIN_ROOM',
-  LeaveRoom = 'LEAVE_ROOM',
-  PlayerInput = 'PLAYER_INPUT',
-  Ping = 'PING',
-  ScriptMessage = 'SCRIPT_MESSAGE',
-  
+  JoinRoom = "JOIN_ROOM",
+  LeaveRoom = "LEAVE_ROOM",
+  PlayerInput = "PLAYER_INPUT",
+  Ping = "PING",
+  ScriptMessage = "SCRIPT_MESSAGE",
+
   // Server -> Client
-  RoomJoined = 'ROOM_JOINED',
-  RoomLeft = 'ROOM_LEFT',
-  Snapshot = 'SNAPSHOT',
-  PlayerJoined = 'PLAYER_JOINED',
-  PlayerLeft = 'PLAYER_LEFT',
-  Pong = 'PONG',
-  Error = 'ERROR',
-  ScriptBroadcast = 'SCRIPT_BROADCAST'
+  RoomJoined = "ROOM_JOINED",
+  RoomLeft = "ROOM_LEFT",
+  Snapshot = "SNAPSHOT",
+  PlayerJoined = "PLAYER_JOINED",
+  PlayerLeft = "PLAYER_LEFT",
+  Pong = "PONG",
+  Error = "ERROR",
+  ScriptBroadcast = "SCRIPT_BROADCAST",
 }
 
 export interface JoinRoomMessage {
   type: MessageType.JoinRoom;
   roomId?: string;
   playerName: string;
+  spawnPosition?: Vector3;
 }
 
 export interface LeaveRoomMessage {
@@ -78,5 +79,15 @@ export interface ScriptBroadcastMessage {
   senderId?: string; // Who sent the message
 }
 
-export type ClientMessage = JoinRoomMessage | LeaveRoomMessage | PlayerInputMessage | ScriptMessage;
-export type ServerMessage = RoomJoinedMessage | SnapshotMessage | PlayerJoinedMessage | PlayerLeftMessage | ErrorMessage | ScriptBroadcastMessage;
+export type ClientMessage =
+  | JoinRoomMessage
+  | LeaveRoomMessage
+  | PlayerInputMessage
+  | ScriptMessage;
+export type ServerMessage =
+  | RoomJoinedMessage
+  | SnapshotMessage
+  | PlayerJoinedMessage
+  | PlayerLeftMessage
+  | ErrorMessage
+  | ScriptBroadcastMessage;

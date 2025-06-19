@@ -1,53 +1,51 @@
-import { WebSocket } from 'ws';
-import { nanoid } from 'nanoid';
-import { 
-  ClientMessage, 
-  ServerMessage, 
+import { WebSocket } from "ws";
+import { nanoid } from "nanoid";
+import {
+  ClientMessage,
+  ServerMessage,
   MessageType,
   ErrorMessage,
-  ScriptMessage 
-} from '@motionjs/common';
-import { RoomManager } from '../rooms/RoomManager.js';
-import { EventEmitter } from 'events';
+  ScriptMessage,
+  Vector3,
+} from "@motionjs/common";
+import { RoomManager } from "../rooms/RoomManager.js";
+import { EventEmitter } from "events";
 
 export class ClientConnection extends EventEmitter {
   public readonly id: string;
   private playerId: string | null = null;
   private roomId: string | null = null;
   private pingInterval: NodeJS.Timeout | null = null;
-  
-  constructor(
-    private ws: WebSocket,
-    private roomManager: RoomManager
-  ) {
+
+  constructor(private ws: WebSocket, private roomManager: RoomManager) {
     super();
     this.id = nanoid();
-    
+
     this.setupEventHandlers();
     this.startPingInterval();
   }
-  
+
   private setupEventHandlers(): void {
-    this.ws.on('message', (data) => {
+    this.ws.on("message", (data) => {
       try {
         const message: ClientMessage = JSON.parse(data.toString());
         this.handleMessage(message);
       } catch (error) {
-        console.error('Failed to parse message:', error);
-        this.sendError('INVALID_MESSAGE', 'Invalid message format');
+        console.error("Failed to parse message:", error);
+        this.sendError("INVALID_MESSAGE", "Invalid message format");
       }
     });
-    
-    this.ws.on('close', () => {
+
+    this.ws.on("close", () => {
       this.handleDisconnect();
     });
-    
-    this.ws.on('error', (error) => {
-      console.error('WebSocket error:', error);
+
+    this.ws.on("error", (error) => {
+      console.error("WebSocket error:", error);
       this.handleDisconnect();
     });
   }
-  
+
   private startPingInterval(): void {
     this.pingInterval = setInterval(() => {
       if (this.ws.readyState === WebSocket.OPEN) {
@@ -55,92 +53,105 @@ export class ClientConnection extends EventEmitter {
       }
     }, 30000);
   }
-  
+
   private handleMessage(message: ClientMessage): void {
     switch (message.type) {
       case MessageType.JoinRoom:
-        this.handleJoinRoom(message.roomId || null, message.playerName);
+        this.handleJoinRoom(
+          message.roomId || null,
+          message.playerName,
+          message.spawnPosition
+        );
         break;
-        
+
       case MessageType.LeaveRoom:
         this.handleLeaveRoom();
         break;
-        
+
       case MessageType.PlayerInput:
         if (this.roomId && this.playerId) {
           const room = this.roomManager.getRoom(this.roomId);
           room?.handlePlayerInput(this.playerId, message.input);
         }
         break;
-        
+
       case MessageType.ScriptMessage:
         if (this.roomId && this.playerId) {
           const room = this.roomManager.getRoom(this.roomId);
-          room?.handleScriptMessage(this.playerId, message.channel, message.data, message.targetPlayerId);
+          room?.handleScriptMessage(
+            this.playerId,
+            message.channel,
+            message.data,
+            message.targetPlayerId
+          );
         }
         break;
     }
   }
-  
-  private async handleJoinRoom(roomId: string | null, playerName: string): Promise<void> {
+
+  private async handleJoinRoom(
+    roomId: string | null,
+    playerName: string,
+    spawnPosition?: Vector3
+  ): Promise<void> {
     if (this.roomId) {
       this.handleLeaveRoom();
     }
-    
-    const room = roomId 
+
+    const room = roomId
       ? await this.roomManager.getOrCreateRoom(roomId)
       : await this.roomManager.findOrCreateAvailableRoom();
-      
-    const result = room.addPlayer(this.id, playerName, this);
-    
+
+    const result = room.addPlayer(this.id, playerName, this, spawnPosition);
+
     if (result.success) {
       this.roomId = room.id;
       this.playerId = result.playerId!;
     } else {
-      this.sendError('ROOM_FULL', result.error || 'Failed to join room');
+      this.sendError("ROOM_FULL", result.error || "Failed to join room");
     }
   }
-  
+
   private handleLeaveRoom(): void {
     if (this.roomId && this.playerId) {
       const room = this.roomManager.getRoom(this.roomId);
       room?.removePlayer(this.playerId);
-      
+
       this.roomId = null;
       this.playerId = null;
     }
   }
-  
+
   private handleDisconnect(): void {
     this.handleLeaveRoom();
-    
+
     if (this.pingInterval) {
       clearInterval(this.pingInterval);
       this.pingInterval = null;
     }
-    
-    this.emit('disconnect');
+
+    this.emit("disconnect");
   }
-  
+
   send(message: ServerMessage): void {
     if (this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(message));
     }
   }
-  
+
   private sendError(code: string, message: string): void {
     const errorMessage: ErrorMessage = {
       type: MessageType.Error,
       code,
-      message
+      message,
     };
     this.send(errorMessage);
   }
-  
+
   disconnect(): void {
     this.ws.close();
   }
-  
+
   getPlayerId(): string | null {
     return this.playerId;
   }
